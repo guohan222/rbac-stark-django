@@ -1,3 +1,5 @@
+from types import FunctionType
+
 from django.shortcuts import render
 from django.urls import path
 from django.http import HttpResponse
@@ -5,7 +7,11 @@ from django.http import HttpResponse
 
 # 通用crud类
 class StarkConfig(object):
-    # 要展示的字段
+    # 要展示的列（数据库中的字段or自己定义的列）
+    # list_display中因为可能有自定义的列，然而这个列要想在表中显示肯定要有表head，表body
+    # 而表head要显示标题，body要显示数据，
+    # 所以在自定义时要区分，什么时候给表head展示指定自定义的标题，什么时候给表body展示自定义的数据
+    # 即自定义列的函数要有head与否的区分标识
     list_display = []
 
     def __init__(self, model_class, site):
@@ -21,23 +27,31 @@ class StarkConfig(object):
 
     # 通用crud操作方法
     def changelist_view(self, request):
-
-        # 获取要展示的字段
+        # 获取要展示的列
         list_display = self.get_list_display()
+        # 表中数据
+        queryset = self.model_class.objects.all()
 
         # 表头
         header_list = []
         if list_display:
-            for item in list_display:
-                verbose_name = self.model_class._meta.get_field(item).verbose_name
+            for field_or_func in list_display:
+                # 区分要展示的列是自定义的还是表中的字段
+                if isinstance(field_or_func,FunctionType):
+                    # 给自定义列的函数，表示现在函数功能是表头
+                    verbose_name = field_or_func(self,obj=None,header=True)
+                else:
+                    verbose_name = self.model_class._meta.get_field(field_or_func).verbose_name
+
                 header_list.append(verbose_name)
         else:
+            # 如果没有指定要展示的列，则展示，该表名、该表查询出来的所有对象（__str__）
             header_list.append(self.model_class._meta.model_name)
 
-        # 数据行
-        body_list = []  # [[1,gh], [2,ghh],]
-        data_list = self.model_class.objects.all()
-        for row in data_list:
+
+        # 表body [[1,gh], [2,ghh],]
+        body_list = []
+        for row in queryset:
             # 每一行数据
             tr_list = []
             if not list_display:
@@ -45,8 +59,12 @@ class StarkConfig(object):
                 body_list.append(tr_list)
                 continue
 
-            for item in list_display:
-                tr_list.append(getattr(row, item))
+            # 反射，获取该对象中要展示的属性（字段） or  自定义列的数据内容
+            for field_or_func in list_display:
+                if isinstance(field_or_func,FunctionType):
+                    tr_list.append(field_or_func(self,obj=row))
+                else:
+                    tr_list.append(getattr(row, field_or_func))
             body_list.append(tr_list)
 
         return render(
