@@ -1,17 +1,76 @@
+from django.shortcuts import render
 from django.urls import path
 from django.http import HttpResponse
 
 
-# 通用crud类，另外通过extra可额外自定义操作
+# 通用crud类
 class StarkConfig(object):
+    # 要展示的字段
+    list_display = []
 
     def __init__(self, model_class, site):
         self.model_class = model_class
         self.site = site
 
+    def get_list_display(self):
+        """获取要显示的字段（列），预留的自定义扩展，例如：以后根据用户的不同显示不同的列"""
+        value = []
+        value.extend(self.list_display)
+
+        return value
+
     # 通用crud操作方法
     def changelist_view(self, request):
-        return HttpResponse('list')
+
+        # 获取要展示的字段
+        list_display = self.get_list_display()
+
+        # 表头
+        header_list = []
+        if list_display:
+            for item in list_display:
+                verbose_name = self.model_class._meta.get_field(item).verbose_name
+                header_list.append(verbose_name)
+        else:
+            header_list.append(self.model_class._meta.model_name)
+
+        # 数据行
+        body_list = []  # [[1,gh], [2,ghh],]
+        data_list = self.model_class.objects.all()
+        for row in data_list:
+            # 每一行数据
+            tr_list = []
+            if not list_display:
+                tr_list.append(row)
+                body_list.append(tr_list)
+                continue
+
+            for item in list_display:
+                tr_list.append(getattr(row, item))
+            body_list.append(tr_list)
+
+        return render(
+            request,
+            'stark/changelist.html',
+            {
+                'header_list':header_list,
+                'body_list':body_list,
+
+            }
+        )
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     def add_view(self, request):
         return HttpResponse('add')
@@ -49,6 +108,7 @@ class StarkConfig(object):
         return self.get_urls()
 
 
+# 表的注册，路由的动态生成
 class StarkSite(object):
     def __init__(self):
         """
@@ -74,7 +134,7 @@ class StarkSite(object):
             stark_config = StarkConfig
 
         # ！！！进行实例化
-        self._registry[model_class] = stark_config(model_class,self)
+        self._registry[model_class] = stark_config(model_class, self)
         print(self._registry)
 
     # 给每张表造crud路由

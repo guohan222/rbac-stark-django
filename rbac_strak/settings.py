@@ -57,7 +57,7 @@ ROOT_URLCONF = 'rbac_strak.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates']
+        'DIRS': [BASE_DIR / 'stark/templates']
         ,
         'APP_DIRS': True,
         'OPTIONS': {

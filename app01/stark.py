@@ -13,6 +13,7 @@ from django.http import HttpResponse
 
 # userinfo表自己的crud类，继承StarkConfig类（有通用的curd功能）
 class UserInfoConfig(StarkConfig):
+    list_display = ['name','age','email']
 
     def func(self):
         return HttpResponse('**m')
