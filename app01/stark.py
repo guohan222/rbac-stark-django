@@ -2,13 +2,22 @@
 from app01.models import UserInfo
 from stark.service.stark import site, StarkConfig
 
-
+from django import forms
 from django.urls import path
 from django.http import HttpResponse
-from django.utils.safestring import mark_safe
 
 
 
+
+
+
+class UserInfoModelForm(forms.ModelForm):
+    class Meta:
+        model = UserInfo
+        fields = '__all__'
+
+    def clean_name(self):
+        return self.cleaned_data['name']
 
 
 
@@ -16,17 +25,11 @@ from django.utils.safestring import mark_safe
 class UserInfoConfig(StarkConfig):
 
 
-    def display_checkbox(self,obj=None,header=False):
-        # 自定义要展示的列，然而这个列要想在表中显示肯定要有表head，表body
-        # 而表head要显示标题，body要显示数据，
-        # 所以在自定义时要区分，什么时候给表head展示指定自定义的标题，什么时候给表body展示自定义的数据
-        # 即自定义列的函数要有head与否的区分标识
-        if header:
-            return '选择'
-        return mark_safe(f"<input type='checkbox' name='{obj.pk}' />")
+    list_display = ['name', 'age', 'email',StarkConfig.display_edit_del]
 
-
-    list_display = [display_checkbox,'name', 'age', 'email']
+    # 添加按钮，预留扩展点，例如：根据权限判断是否对其展示此按钮
+    # def get_add_btn(self):
+    #     return None
 
     def func(self):
         return HttpResponse('**m')

@@ -1,45 +1,146 @@
+
 from types import FunctionType
 
-from django.shortcuts import render
+from stark.form.bootstrap import BootStrap
+
+from django import forms
 from django.urls import path
-from django.http import HttpResponse
+from django.urls import reverse
+from django.shortcuts import render, redirect
+from django.http import HttpResponse, JsonResponse
+from django.utils.safestring import mark_safe
 
 
 # 通用crud类
 class StarkConfig(object):
-    # 要展示的列（数据库中的字段or自己定义的列）
-    # list_display中因为可能有自定义的列，然而这个列要想在表中显示肯定要有表head，表body
-    # 而表head要显示标题，body要显示数据，
-    # 所以在自定义时要区分，什么时候给表head展示指定自定义的标题，什么时候给表body展示自定义的数据
-    # 即自定义列的函数要有head与否的区分标识
+
+    def display_checkbox(self, obj=None, header=False):
+        # 自定义要展示的列，然而这个列要想在表中显示肯定要有表head，表body
+        # 而表head要显示标题，body要显示数据，
+        # 所以在自定义时要区分，什么时候给表head展示指定自定义的标题，什么时候给表body展示自定义的数据
+        # 即自定义列的函数要有head与否的区分标识
+        if header:
+            return '选择'
+        return mark_safe(f"<input type='checkbox' name='{obj.pk}' />")
+
+    def display_edit(self, obj=None, header=False):
+        if header:
+            return '操作'
+
+        edit_icon = f"""
+        <div class="text-end pe-4">
+            <a href="{self.reverse_edit_url(obj)}" class="text-decoration-none me-3"
+               style="color: #bfbfbf; transition: 0.3s;" onmouseover="this.style.color='#1677ff'"
+               onmouseout="this.style.color='#bfbfbf'">
+                <i class="fa-solid fa-pen-to-square"></i>
+            </a>
+        </div>
+        """
+        return mark_safe(edit_icon)
+
+    def display_del(self, obj=None, header=False):
+        if header:
+            return '操作'
+
+        del_icon = f"""
+        <div class="text-end pe-4">
+            <a href="#" class="text-decoration-none"
+                style="color: #bfbfbf; transition: 0.3s;" onmouseover="this.style.color='#ff4d4f'"
+                onmouseout="this.style.color='#bfbfbf'"
+                data-bs-toggle="modal"
+                data-bs-target="#deleteModal"
+                data-name="{obj}"
+                data-url="{self.reverse_del_url(obj)}">
+                <i class="fa-solid fa-trash"></i>
+            </a>
+        </div>
+        """
+        return mark_safe(del_icon)
+
+    def display_edit_del(self, obj=None, header=False):
+        if header:
+            return '操作'
+
+        edit_del_icon = f"""
+        <div class="text-end pe-4">
+            <a href="{self.reverse_edit_url(obj)}" class="text-decoration-none me-3"
+               style="color: #bfbfbf; transition: 0.3s;" onmouseover="this.style.color='#1677ff'"
+               onmouseout="this.style.color='#bfbfbf'">
+                <i class="fa-solid fa-pen-to-square"></i>
+            </a>
+            <a href="#" class="text-decoration-none"
+                style="color: #bfbfbf; transition: 0.3s;" onmouseover="this.style.color='#ff4d4f'"
+                onmouseout="this.style.color='#bfbfbf'"
+                data-bs-toggle="modal"
+                data-bs-target="#deleteModal"
+                data-name="{obj}"
+                data-url="{self.reverse_del_url(obj)}">
+                <i class="fa-solid fa-trash"></i>
+            </a>
+        </div>
+
+        """
+        return mark_safe(edit_del_icon)
+
+    order_by = []
     list_display = []
+    model_form_class = None
 
     def __init__(self, model_class, site):
         self.model_class = model_class
         self.site = site
 
+
+    def get_order_by(self):
+        return self.order_by
+
     def get_list_display(self):
         """获取要显示的字段（列），预留的自定义扩展，例如：以后根据用户的不同显示不同的列"""
-        value = []
-        value.extend(self.list_display)
+        return self.list_display
 
-        return value
+    def get_add_btn(self):
+        add_btn = f"""
+            <a href="{self.reverse_add_url()}" class="btn btn-sm px-3"
+                style="border: 1px solid #d9d9d9; color: #595959; background: #fff; transition: all 0.3s;"
+                onmouseover="this.style.borderColor='#1677ff'; this.style.color='#1677ff';"
+                onmouseout="this.style.borderColor='#d9d9d9'; this.style.color='#595959';">
+                <i class="fa-solid fa-plus"></i> 添加
+            </a>
+        """
+        return mark_safe(add_btn)
 
-    # 通用crud操作方法
+
+
+    def get_model_form_class(self):
+        if self.model_form_class:
+            return self.model_form_class
+
+        class AddModelForm(BootStrap,forms.ModelForm):
+            class Meta:
+                model = self.model_class
+                fields = '__all__'
+        return AddModelForm
+
+
+
     def changelist_view(self, request):
         # 获取要展示的列
         list_display = self.get_list_display()
+        # 添加按钮
+        add_btn = self.get_add_btn()
         # 表中数据
-        queryset = self.model_class.objects.all()
+        queryset = self.model_class.objects.all(*self.get_order_by())
+        align_right_columns = ['操作']
+
 
         # 表头
         header_list = []
         if list_display:
             for field_or_func in list_display:
                 # 区分要展示的列是自定义的还是表中的字段
-                if isinstance(field_or_func,FunctionType):
+                if isinstance(field_or_func, FunctionType):
                     # 给自定义列的函数，表示现在函数功能是表头
-                    verbose_name = field_or_func(self,obj=None,header=True)
+                    verbose_name = field_or_func(self, obj=None, header=True)
                 else:
                     verbose_name = self.model_class._meta.get_field(field_or_func).verbose_name
 
@@ -47,7 +148,6 @@ class StarkConfig(object):
         else:
             # 如果没有指定要展示的列，则展示，该表名、该表查询出来的所有对象（__str__）
             header_list.append(self.model_class._meta.model_name)
-
 
         # 表body [[1,gh], [2,ghh],]
         body_list = []
@@ -61,8 +161,8 @@ class StarkConfig(object):
 
             # 反射，获取该对象中要展示的属性（字段） or  自定义列的数据内容
             for field_or_func in list_display:
-                if isinstance(field_or_func,FunctionType):
-                    tr_list.append(field_or_func(self,obj=row))
+                if isinstance(field_or_func, FunctionType):
+                    tr_list.append(field_or_func(self, obj=row))
                 else:
                     tr_list.append(getattr(row, field_or_func))
             body_list.append(tr_list)
@@ -71,33 +171,47 @@ class StarkConfig(object):
             request,
             'stark/changelist.html',
             {
-                'header_list':header_list,
-                'body_list':body_list,
-
+                'header_list': header_list,
+                'body_list': body_list,
+                'add_btn':add_btn,
+                'align_right_columns':align_right_columns
             }
         )
 
-
-
-
-
-
-
-
-
-
-
-
-
-
     def add_view(self, request):
-        return HttpResponse('add')
+        ModelFormClass = self.get_model_form_class()
+        change_list_url = self.reverse_list_url()
+
+        if request.method == 'GET':
+            form = ModelFormClass()
+            return render(request,'stark/change.html',{'form':form,'change_list_url':change_list_url})
+        form = ModelFormClass(data=request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect(change_list_url)
+        return render(request,'stark/change.html',{'form':form,'change_list_url':change_list_url})
 
     def change_view(self, request, pk):
-        return HttpResponse('edit')
+        ModelFormClass = self.get_model_form_class()
+        change_list_url = self.reverse_list_url()
+        obj = self.model_class.objects.filter(pk=pk).first()
+
+        if not obj:
+            return redirect(change_list_url)
+
+        if request.method == 'GET':
+            form = ModelFormClass(instance=obj)
+            return render(request, 'stark/change.html', {'form': form, 'change_list_url': change_list_url})
+        form = ModelFormClass(data=request.POST,instance=obj)
+        if form.is_valid():
+            form.save()
+            return redirect(change_list_url)
+        return render(request, 'stark/change.html', {'form': form, 'change_list_url': change_list_url})
 
     def delete_view(self, request, pk):
-        return HttpResponse('del')
+        self.model_class.objects.filter(pk=pk).delete()
+        return JsonResponse({'status':True})
+
 
     # 为每张表生成crud路由
     def get_urls(self):
@@ -124,6 +238,46 @@ class StarkConfig(object):
     @property
     def urls(self):
         return self.get_urls()
+
+
+    def reverse_list_url(self,):
+        app_label = self.model_class._meta.app_label
+        model_name= self.model_class._meta.model_name
+        namespace = self.site.namespace
+        name = f'{namespace}:{app_label}_{model_name}_changelist'
+        list_url = reverse(name)
+        return list_url
+
+    def reverse_add_url(self):
+        app_label = self.model_class._meta.app_label
+        model_name= self.model_class._meta.model_name
+        namespace = self.site.namespace
+        name = f'{namespace}:{app_label}_{model_name}_add'
+        add_url = reverse(name)
+        return add_url
+
+    def reverse_edit_url(self,obj):
+        app_label = self.model_class._meta.app_label
+        model_name= self.model_class._meta.model_name
+        namespace = self.site.namespace
+        name = f'{namespace}:{app_label}_{model_name}_change'
+        edit_url = reverse(name,kwargs={'pk':obj.pk})
+        return edit_url
+
+
+    def reverse_del_url(self,obj):
+        app_label = self.model_class._meta.app_label
+        model_name= self.model_class._meta.model_name
+        namespace = self.site.namespace
+        name = f'{namespace}:{app_label}_{model_name}_del'
+        del_url = reverse(name,kwargs={'pk':obj.pk})
+        return del_url
+
+
+
+
+
+
 
 
 # 表的注册，路由的动态生成
