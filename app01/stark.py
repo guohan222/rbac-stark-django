@@ -25,7 +25,7 @@ class UserInfoModelForm(forms.ModelForm):
 class UserInfoConfig(StarkConfig):
 
 
-    list_display = ['name', 'age', 'email',StarkConfig.display_edit_del]
+    list_display = [StarkConfig.display_checkbox,'name', 'age', 'email',StarkConfig.display_edit_del]
 
     # 添加按钮，预留扩展点，例如：根据权限判断是否对其展示此按钮
     # def get_add_btn(self):

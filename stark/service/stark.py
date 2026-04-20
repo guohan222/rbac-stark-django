@@ -21,7 +21,7 @@ class StarkConfig(object):
         # 即自定义列的函数要有head与否的区分标识
         if header:
             return '选择'
-        return mark_safe(f"<input type='checkbox' name='{obj.pk}' />")
+        return mark_safe(f"<input type='checkbox' name='pk' value='{obj.pk}' />")
 
     def display_edit(self, obj=None, header=False):
         if header:
@@ -85,6 +85,8 @@ class StarkConfig(object):
     order_by = []
     list_display = []
     model_form_class = None
+    action_list = []    # 单选框中操作
+
 
     def __init__(self, model_class, site):
         self.model_class = model_class
@@ -109,8 +111,6 @@ class StarkConfig(object):
         """
         return mark_safe(add_btn)
 
-
-
     def get_model_form_class(self):
         if self.model_form_class:
             return self.model_form_class
@@ -121,6 +121,21 @@ class StarkConfig(object):
                 fields = '__all__'
         return AddModelForm
 
+    def get_action_list(self):
+        return self.action_list
+
+    # 单选框操作
+    def multi_delete(self,request):
+        pk_list = request.POST.getlist('pk')
+        self.model_class.objects.filter(pk__in=pk_list).delete()
+
+    # 一切皆对象
+    multi_delete.text = '批量删除'
+    action_list.append(multi_delete)
+
+
+
+
 
 
     def changelist_view(self, request):
@@ -130,6 +145,10 @@ class StarkConfig(object):
         add_btn = self.get_add_btn()
         # 表中数据
         queryset = self.model_class.objects.all(*self.get_order_by())
+        # 能够进行批量操作的内容
+        action_list = self.get_action_list()
+        action_dict = {item.__name__:item.text for item in action_list}     # 前端多选框展示text，后端通过反射由的name找到对应的函数   ？
+
         align_right_columns = ['操作']
 
 
@@ -167,6 +186,18 @@ class StarkConfig(object):
                     tr_list.append(getattr(row, field_or_func))
             body_list.append(tr_list)
 
+        if request.method == 'POST':
+            # 获取选择的操作
+            action_func_name = request.POST.get('action')
+            if action_func_name not in action_dict:
+                return HttpResponse('非法操作')
+            action_func = getattr(self, action_func_name, None)
+            ret = action_func(request)
+            if ret:
+                return ret
+            return redirect(self.reverse_list_url())
+
+
         return render(
             request,
             'stark/changelist.html',
@@ -174,7 +205,8 @@ class StarkConfig(object):
                 'header_list': header_list,
                 'body_list': body_list,
                 'add_btn':add_btn,
-                'align_right_columns':align_right_columns
+                'align_right_columns':align_right_columns,
+                'action_dict':action_dict
             }
         )
 
