@@ -1,10 +1,14 @@
 
+
+import functools
 from types import FunctionType
 
 from stark.form.bootstrap import BootStrap
 
 from django import forms
 from django.urls import path
+from django.db.models import Q
+from django.http import QueryDict
 from django.urls import reverse
 from django.shortcuts import render, redirect
 from django.http import HttpResponse, JsonResponse
@@ -85,12 +89,14 @@ class StarkConfig(object):
     order_by = []
     list_display = []
     model_form_class = None
-    action_list = []    # 单选框中操作
+    action_list = []    # 单选框中的操作
+    search_list = ['name','age']    # 允许进行搜索的字段
 
 
     def __init__(self, model_class, site):
         self.model_class = model_class
         self.site = site
+        self.request = None
 
 
     def get_order_by(self):
@@ -124,7 +130,25 @@ class StarkConfig(object):
     def get_action_list(self):
         return self.action_list
 
-    # 单选框操作
+    def get_search_list(self):
+        return self.search_list
+
+    def get_search_condition(self,request):
+        search_list = self.get_search_list()
+        q = request.GET.get('q', '')  # 搜索条件：?q='郭'
+
+        # 创建Q对象
+        con = Q()
+        # 条件之间用or连接
+        con.connector = 'OR'
+        if q:
+            for field in search_list:
+                # 相当于 Q(name__contains=search_value) | Q(email__contains=search_value)
+                con.children.append((f'{field}__contains', q))
+        return q, search_list, con
+
+
+    # 批量删除操作
     def multi_delete(self,request):
         pk_list = request.POST.getlist('pk')
         self.model_class.objects.filter(pk__in=pk_list).delete()
@@ -143,8 +167,12 @@ class StarkConfig(object):
         list_display = self.get_list_display()
         # 添加按钮
         add_btn = self.get_add_btn()
+
+        # 获取搜索条件
+        q, search_list, con = self.get_search_condition(request)
         # 表中数据
-        queryset = self.model_class.objects.all(*self.get_order_by())
+        queryset = self.model_class.objects.filter(con).order_by(*self.get_order_by())
+
         # 能够进行批量操作的内容
         action_list = self.get_action_list()
         action_dict = {item.__name__:item.text for item in action_list}     # 前端多选框展示text，后端通过反射由的name找到对应的函数   ？
@@ -206,7 +234,9 @@ class StarkConfig(object):
                 'body_list': body_list,
                 'add_btn':add_btn,
                 'align_right_columns':align_right_columns,
-                'action_dict':action_dict
+                'action_dict':action_dict,
+                'search_list':search_list,
+                'q':q
             }
         )
 
@@ -245,16 +275,23 @@ class StarkConfig(object):
         return JsonResponse({'status':True})
 
 
+    def wrapper(self,func):
+        @functools.wraps(func)
+        def inner(request,*args,**kwargs):
+            self.request = request
+            return func(request,*args,**kwargs)
+        return inner
+
     # 为每张表生成crud路由
     def get_urls(self):
         # noinspection PyProtectedMember
         prefix = f'{self.model_class._meta.app_label}_{self.model_class._meta.model_name}'
 
         urlpatterns = [
-            path('list/', self.changelist_view, name=f'{prefix}_changelist'),
-            path('add/', self.add_view, name=f'{prefix}_add'),
-            path('edit/<int:pk>/', self.change_view, name=f'{prefix}_change'),
-            path('del/<int:pk>/', self.delete_view, name=f'{prefix}_del'),
+            path('list/', self.wrapper(self.changelist_view), name=f'{prefix}_changelist'),
+            path('add/', self.wrapper(self.add_view), name=f'{prefix}_add'),
+            path('edit/<int:pk>/', self.wrapper(self.change_view), name=f'{prefix}_change'),
+            path('del/<int:pk>/', self.wrapper(self.delete_view), name=f'{prefix}_del'),
         ]
 
         # 检测‘自己(self)’的crud类，有没有在extra_url函数中自定义其他功能的url
@@ -278,6 +315,10 @@ class StarkConfig(object):
         namespace = self.site.namespace
         name = f'{namespace}:{app_label}_{model_name}_changelist'
         list_url = reverse(name)
+
+        params_str = self.request.GET.get('_filter')
+        if params_str:
+            return f'{list_url}?{params_str}'
         return list_url
 
     def reverse_add_url(self):
@@ -286,6 +327,14 @@ class StarkConfig(object):
         namespace = self.site.namespace
         name = f'{namespace}:{app_label}_{model_name}_add'
         add_url = reverse(name)
+
+        # 如果有 GET 参数，打包成 _filter，urlencode读取所以，request.GET没有发生改变
+        params_str = self.request.GET.urlencode()   # 变成 'q=han'
+        if params_str:
+            q = QueryDict(mutable = True)
+            q['_filter'] = params_str
+            return f'{add_url}?{q.urlencode()}'     # 变成 /add/?_filter=q%3Dhan
+
         return add_url
 
     def reverse_edit_url(self,obj):
@@ -294,7 +343,16 @@ class StarkConfig(object):
         namespace = self.site.namespace
         name = f'{namespace}:{app_label}_{model_name}_change'
         edit_url = reverse(name,kwargs={'pk':obj.pk})
+
+        params_str = self.request.GET.urlencode()
+        if params_str:
+            q = QueryDict(mutable = True)
+            q['_filter'] = params_str
+            return f'{edit_url}?{q.urlencode()}'
+
         return edit_url
+
+
 
 
     def reverse_del_url(self,obj):

@@ -15,40 +15,46 @@
             {% endif %}
         </div>
 
-        <form action="" method="post">
-            {% csrf_token %}
-            <div class="card-body px-4 pb-4 pt-0">
+        <div class="card-body px-4 pb-4 pt-0">
 
-                <div class="d-flex justify-content-between align-items-center mb-3 mt-2">
-                    {% if action_dict %}
-                        <div class="d-flex align-items-center gap-2">
-                            <select name="action" class="form-select"
-                                    style="width: 160px; height: 32px; padding: 2px 11px; font-size: 14px; border-color: #d9d9d9; border-radius: 6px; box-shadow: none; cursor: pointer;">
-                                <option value="">请选择操作</option>
-                                {% for func_name, func_text in action_dict.items %}
-                                    <option value="{{ func_name }}">{{ func_text }}</option>
-                                {% endfor %}
-                            </select>
-                            <button type="submit" class="btn px-3 d-flex align-items-center justify-content-center"
-                                    style="height: 32px; border: 1px solid #d9d9d9; background: #fff; color: #595959; border-radius: 6px; font-size: 14px; transition: all 0.3s;"
-                                    onmouseover="this.style.borderColor='#1677ff'; this.style.color='#1677ff';"
-                                    onmouseout="this.style.borderColor='#d9d9d9'; this.style.color='#595959';">
-                                执 行
-                            </button>
-                        </div>
-                    {% endif %}
-
-                    <div class="input-group" style="width: 250px; height: 32px;">
-                        <input type="text" class="form-control" placeholder="请输入关键字..."
+            {% if search_list %}
+                <div class="float-end mt-2 mb-3">
+                    <form method="GET" class="input-group" style="width: 250px; height: 32px;">
+                        <input type="text" name="q" class="form-control" value="{{ q }}"
+                               placeholder="请输入关键字..."
                                style="height: 32px; font-size: 14px; border-color: #d9d9d9; border-right: none; border-top-left-radius: 6px; border-bottom-left-radius: 6px; box-shadow: none;">
-                        <button type="button" class="btn"
+                        <button type="submit" class="btn"
                                 style="height: 32px; border: 1px solid #d9d9d9; border-left: none; background: #fff; color: #bfbfbf; border-top-right-radius: 6px; border-bottom-right-radius: 6px; transition: all 0.3s;"
                                 onmouseover="this.style.color='#1677ff';"
                                 onmouseout="this.style.color='#bfbfbf';">
                             <i class="fa-solid fa-magnifying-glass"></i>
                         </button>
-                    </div>
+                    </form>
                 </div>
+            {% endif %}
+
+            <form action="" method="post">
+                {% csrf_token %}
+
+                {% if action_dict %}
+                    <div class="d-flex align-items-center gap-2 mt-2 mb-3">
+                        <select name="action" class="form-select"
+                                style="width: 160px; height: 32px; padding: 2px 11px; font-size: 14px; border-color: #d9d9d9; border-radius: 6px; box-shadow: none; cursor: pointer;">
+                            <option value="">请选择操作</option>
+                            {% for func_name, func_text in action_dict.items %}
+                                <option value="{{ func_name }}">{{ func_text }}</option>
+                            {% endfor %}
+                        </select>
+                        <button type="submit" class="btn px-3 d-flex align-items-center justify-content-center"
+                                style="height: 32px; border: 1px solid #d9d9d9; background: #fff; color: #595959; border-radius: 6px; font-size: 14px; transition: all 0.3s;"
+                                onmouseover="this.style.borderColor='#1677ff'; this.style.color='#1677ff';"
+                                onmouseout="this.style.borderColor='#d9d9d9'; this.style.color='#595959';">
+                            执 行
+                        </button>
+                    </div>
+                {% endif %}
+
+                <div class="clearfix"></div>
 
                 <table class="table align-middle mb-0">
                     <thead>
@@ -71,8 +77,8 @@
                     </tbody>
                 </table>
 
-            </div>
-        </form>
+            </form>
+        </div>
 
     </div>
 
