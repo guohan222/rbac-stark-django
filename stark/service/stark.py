@@ -1,7 +1,6 @@
-
-
 import functools
 from types import FunctionType
+from stark.utils.pagination import Pagination
 
 from stark.form.bootstrap import BootStrap
 
@@ -89,15 +88,13 @@ class StarkConfig(object):
     order_by = []
     list_display = []
     model_form_class = None
-    action_list = []    # 单选框中的操作
-    search_list = ['name','age']    # 允许进行搜索的字段
-
+    action_list = []  # 单选框中的操作
+    search_list = ['name', 'age']  # 允许进行搜索的字段
 
     def __init__(self, model_class, site):
         self.model_class = model_class
         self.site = site
         self.request = None
-
 
     def get_order_by(self):
         return self.order_by
@@ -121,10 +118,11 @@ class StarkConfig(object):
         if self.model_form_class:
             return self.model_form_class
 
-        class AddModelForm(BootStrap,forms.ModelForm):
+        class AddModelForm(BootStrap, forms.ModelForm):
             class Meta:
                 model = self.model_class
                 fields = '__all__'
+
         return AddModelForm
 
     def get_action_list(self):
@@ -133,7 +131,7 @@ class StarkConfig(object):
     def get_search_list(self):
         return self.search_list
 
-    def get_search_condition(self,request):
+    def get_search_condition(self, request):
         search_list = self.get_search_list()
         q = request.GET.get('q', '')  # 搜索条件：?q='郭'
 
@@ -147,20 +145,14 @@ class StarkConfig(object):
                 con.children.append((f'{field}__contains', q))
         return q, search_list, con
 
-
     # 批量删除操作
-    def multi_delete(self,request):
+    def multi_delete(self, request):
         pk_list = request.POST.getlist('pk')
         self.model_class.objects.filter(pk__in=pk_list).delete()
 
     # 一切皆对象
     multi_delete.text = '批量删除'
     action_list.append(multi_delete)
-
-
-
-
-
 
     def changelist_view(self, request):
         # 获取要展示的列
@@ -173,12 +165,20 @@ class StarkConfig(object):
         # 表中数据
         queryset = self.model_class.objects.filter(con).order_by(*self.get_order_by())
 
+        # 分页
+        page_object = Pagination(
+            current_page=request.GET.get('page'),
+            all_count=queryset.count(),
+            base_url=request.path_info,
+            query_params=request.GET
+        )
+        data_list = queryset[page_object.start:page_object.end]
+
         # 能够进行批量操作的内容
         action_list = self.get_action_list()
-        action_dict = {item.__name__:item.text for item in action_list}     # 前端多选框展示text，后端通过反射由的name找到对应的函数   ？
+        action_dict = {item.__name__: item.text for item in action_list}  # 前端多选框展示text，后端通过反射由的name找到对应的函数   ？
 
         align_right_columns = ['操作']
-
 
         # 表头
         header_list = []
@@ -198,7 +198,7 @@ class StarkConfig(object):
 
         # 表body [[1,gh], [2,ghh],]
         body_list = []
-        for row in queryset:
+        for row in data_list:
             # 每一行数据
             tr_list = []
             if not list_display:
@@ -225,18 +225,19 @@ class StarkConfig(object):
                 return ret
             return redirect(self.reverse_list_url())
 
-
         return render(
             request,
             'stark/changelist.html',
             {
                 'header_list': header_list,
                 'body_list': body_list,
-                'add_btn':add_btn,
-                'align_right_columns':align_right_columns,
-                'action_dict':action_dict,
-                'search_list':search_list,
-                'q':q
+                'add_btn': add_btn,
+                'align_right_columns': align_right_columns,
+                'action_dict': action_dict,
+                'search_list': search_list,
+                'q': q,
+                'data_list': data_list,
+                'page_html': page_object.page_html()
             }
         )
 
@@ -246,12 +247,12 @@ class StarkConfig(object):
 
         if request.method == 'GET':
             form = ModelFormClass()
-            return render(request,'stark/change.html',{'form':form,'change_list_url':change_list_url})
+            return render(request, 'stark/change.html', {'form': form, 'change_list_url': change_list_url})
         form = ModelFormClass(data=request.POST)
         if form.is_valid():
             form.save()
             return redirect(change_list_url)
-        return render(request,'stark/change.html',{'form':form,'change_list_url':change_list_url})
+        return render(request, 'stark/change.html', {'form': form, 'change_list_url': change_list_url})
 
     def change_view(self, request, pk):
         ModelFormClass = self.get_model_form_class()
@@ -264,7 +265,7 @@ class StarkConfig(object):
         if request.method == 'GET':
             form = ModelFormClass(instance=obj)
             return render(request, 'stark/change.html', {'form': form, 'change_list_url': change_list_url})
-        form = ModelFormClass(data=request.POST,instance=obj)
+        form = ModelFormClass(data=request.POST, instance=obj)
         if form.is_valid():
             form.save()
             return redirect(change_list_url)
@@ -272,14 +273,14 @@ class StarkConfig(object):
 
     def delete_view(self, request, pk):
         self.model_class.objects.filter(pk=pk).delete()
-        return JsonResponse({'status':True})
+        return JsonResponse({'status': True})
 
-
-    def wrapper(self,func):
+    def wrapper(self, func):
         @functools.wraps(func)
-        def inner(request,*args,**kwargs):
+        def inner(request, *args, **kwargs):
             self.request = request
-            return func(request,*args,**kwargs)
+            return func(request, *args, **kwargs)
+
         return inner
 
     # 为每张表生成crud路由
@@ -308,10 +309,9 @@ class StarkConfig(object):
     def urls(self):
         return self.get_urls()
 
-
-    def reverse_list_url(self,):
+    def reverse_list_url(self, ):
         app_label = self.model_class._meta.app_label
-        model_name= self.model_class._meta.model_name
+        model_name = self.model_class._meta.model_name
         namespace = self.site.namespace
         name = f'{namespace}:{app_label}_{model_name}_changelist'
         list_url = reverse(name)
@@ -323,51 +323,42 @@ class StarkConfig(object):
 
     def reverse_add_url(self):
         app_label = self.model_class._meta.app_label
-        model_name= self.model_class._meta.model_name
+        model_name = self.model_class._meta.model_name
         namespace = self.site.namespace
         name = f'{namespace}:{app_label}_{model_name}_add'
         add_url = reverse(name)
 
         # 如果有 GET 参数，打包成 _filter，urlencode读取所以，request.GET没有发生改变
-        params_str = self.request.GET.urlencode()   # 变成 'q=han'
+        params_str = self.request.GET.urlencode()  # 变成 'q=han'
         if params_str:
-            q = QueryDict(mutable = True)
+            q = QueryDict(mutable=True)
             q['_filter'] = params_str
-            return f'{add_url}?{q.urlencode()}'     # 变成 /add/?_filter=q%3Dhan
+            return f'{add_url}?{q.urlencode()}'  # 变成 /add/?_filter=q%3Dhan
 
         return add_url
 
-    def reverse_edit_url(self,obj):
+    def reverse_edit_url(self, obj):
         app_label = self.model_class._meta.app_label
-        model_name= self.model_class._meta.model_name
+        model_name = self.model_class._meta.model_name
         namespace = self.site.namespace
         name = f'{namespace}:{app_label}_{model_name}_change'
-        edit_url = reverse(name,kwargs={'pk':obj.pk})
+        edit_url = reverse(name, kwargs={'pk': obj.pk})
 
         params_str = self.request.GET.urlencode()
         if params_str:
-            q = QueryDict(mutable = True)
+            q = QueryDict(mutable=True)
             q['_filter'] = params_str
             return f'{edit_url}?{q.urlencode()}'
 
         return edit_url
 
-
-
-
-    def reverse_del_url(self,obj):
+    def reverse_del_url(self, obj):
         app_label = self.model_class._meta.app_label
-        model_name= self.model_class._meta.model_name
+        model_name = self.model_class._meta.model_name
         namespace = self.site.namespace
         name = f'{namespace}:{app_label}_{model_name}_del'
-        del_url = reverse(name,kwargs={'pk':obj.pk})
+        del_url = reverse(name, kwargs={'pk': obj.pk})
         return del_url
-
-
-
-
-
-
 
 
 # 表的注册，路由的动态生成
