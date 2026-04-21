@@ -1,7 +1,5 @@
 import functools
-from types import FunctionType
 from stark.utils.pagination import Pagination
-
 from stark.form.bootstrap import BootStrap
 
 from django import forms
@@ -14,7 +12,27 @@ from django.http import HttpResponse, JsonResponse
 from django.utils.safestring import mark_safe
 
 
-# 通用crud类
+
+
+# 接管列表页面数据处理逻辑
+class ChangeList(object):
+    def __init__(self,config,data_list,q,search_list,page_html):
+        self.config = config
+        self.data_list = data_list
+
+        self.q = q
+        self.search_list = search_list
+        self.page_html = page_html
+
+        self.add_btn = config.get_add_btn()
+        self.action_dict = {item.__name__: item.text for item in config.get_action_list()}
+
+        self.align_right_columns = ['操作']
+        self.list_display = config.get_list_display()
+
+
+
+# 通用crud配置类
 class StarkConfig(object):
 
     def display_checkbox(self, obj=None, header=False):
@@ -89,7 +107,7 @@ class StarkConfig(object):
     list_display = []
     model_form_class = None
     action_list = []  # 单选框中的操作
-    search_list = ['name', 'age']  # 允许进行搜索的字段
+    search_list = []  # 允许进行搜索的字段
 
     def __init__(self, model_class, site):
         self.model_class = model_class
@@ -149,16 +167,11 @@ class StarkConfig(object):
     def multi_delete(self, request):
         pk_list = request.POST.getlist('pk')
         self.model_class.objects.filter(pk__in=pk_list).delete()
-
     # 一切皆对象
     multi_delete.text = '批量删除'
     action_list.append(multi_delete)
 
     def changelist_view(self, request):
-        # 获取要展示的列
-        list_display = self.get_list_display()
-        # 添加按钮
-        add_btn = self.get_add_btn()
 
         # 获取搜索条件
         q, search_list, con = self.get_search_condition(request)
@@ -173,51 +186,15 @@ class StarkConfig(object):
             query_params=request.GET
         )
         data_list = queryset[page_object.start:page_object.end]
+        page_html = page_object.page_html()
 
-        # 能够进行批量操作的内容
-        action_list = self.get_action_list()
-        action_dict = {item.__name__: item.text for item in action_list}  # 前端多选框展示text，后端通过反射由的name找到对应的函数   ？
+        cl = ChangeList(self,data_list,q,search_list,page_html)
 
-        align_right_columns = ['操作']
-
-        # 表头
-        header_list = []
-        if list_display:
-            for field_or_func in list_display:
-                # 区分要展示的列是自定义的还是表中的字段
-                if isinstance(field_or_func, FunctionType):
-                    # 给自定义列的函数，表示现在函数功能是表头
-                    verbose_name = field_or_func(self, obj=None, header=True)
-                else:
-                    verbose_name = self.model_class._meta.get_field(field_or_func).verbose_name
-
-                header_list.append(verbose_name)
-        else:
-            # 如果没有指定要展示的列，则展示，该表名、该表查询出来的所有对象（__str__）
-            header_list.append(self.model_class._meta.model_name)
-
-        # 表body [[1,gh], [2,ghh],]
-        body_list = []
-        for row in data_list:
-            # 每一行数据
-            tr_list = []
-            if not list_display:
-                tr_list.append(row)
-                body_list.append(tr_list)
-                continue
-
-            # 反射，获取该对象中要展示的属性（字段） or  自定义列的数据内容
-            for field_or_func in list_display:
-                if isinstance(field_or_func, FunctionType):
-                    tr_list.append(field_or_func(self, obj=row))
-                else:
-                    tr_list.append(getattr(row, field_or_func))
-            body_list.append(tr_list)
 
         if request.method == 'POST':
             # 获取选择的操作
             action_func_name = request.POST.get('action')
-            if action_func_name not in action_dict:
+            if action_func_name not in cl.action_dict:
                 return HttpResponse('非法操作')
             action_func = getattr(self, action_func_name, None)
             ret = action_func(request)
@@ -225,21 +202,12 @@ class StarkConfig(object):
                 return ret
             return redirect(self.reverse_list_url())
 
-        return render(
-            request,
-            'stark/changelist.html',
-            {
-                'header_list': header_list,
-                'body_list': body_list,
-                'add_btn': add_btn,
-                'align_right_columns': align_right_columns,
-                'action_dict': action_dict,
-                'search_list': search_list,
-                'q': q,
-                'data_list': data_list,
-                'page_html': page_object.page_html()
-            }
-        )
+        context = {
+            'cl': cl,
+            'data_list': data_list,
+        }
+
+        return render(request,'stark/changelist.html',context)
 
     def add_view(self, request):
         ModelFormClass = self.get_model_form_class()
