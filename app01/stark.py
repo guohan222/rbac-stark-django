@@ -1,6 +1,6 @@
 
 from app01.models import UserInfo
-from stark.service.stark import site, StarkConfig
+from stark.service.stark import site, Option, StarkConfig
 
 from django import forms
 from django.urls import path
@@ -26,6 +26,7 @@ class UserInfoConfig(StarkConfig):
 
 
     list_display = [StarkConfig.display_checkbox,'name', 'age', 'email',StarkConfig.display_edit_del]
+    search_group = [Option('depart'),Option('gender')]
 
     # 添加按钮，预留扩展点，例如：根据权限判断是否对其展示此按钮
     # def get_add_btn(self):

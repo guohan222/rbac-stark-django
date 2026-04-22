@@ -2,7 +2,60 @@
 {% load static %}
 {% load stark %}
 
-{% block css %}{% endblock %}
+{% block css %}
+    <style>
+        /* ================= 组合搜索区域 (Ant Design 高级筛选框风格) ================= */
+        .search-group {
+            background-color: #fafafa; /* 浅灰底色，区分内容区 */
+            border: 1px solid #f0f0f0; /* 极细边框 */
+            border-radius: 8px; /* 圆角包裹 */
+            padding: 20px 24px 8px 24px; /* 内部留白 */
+            margin-bottom: 24px; /* 与下方工具栏拉开距离 */
+        }
+
+        .search-row-container {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+
+        .search-group .whole {
+            color: #595959;
+            font-weight: 500;
+            width: 70px;
+            flex-shrink: 0;
+            line-height: 28px;
+            text-align: right;
+            padding-right: 16px;
+        }
+
+        .search-group .others {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .search-group .others a {
+            text-decoration: none;
+            color: #595959;
+            padding: 2px 14px;
+            border-radius: 4px;
+            line-height: 24px;
+            transition: all 0.3s;
+        }
+
+        .search-group .others a:hover {
+            color: #1677ff;
+            background-color: rgba(0, 0, 0, 0.04);
+        }
+
+        .search-group .others a.active {
+            color: #1677ff;
+            background-color: #e6f4ff;
+            font-weight: 500;
+        }
+    </style>
+{% endblock %}
 
 {% block content %}
     <div class="card border-0 mx-auto mt-3" style="box-shadow: 0 1px 2px 0 rgba(0,0,0,0.03); max-width: 100%;">
@@ -16,38 +69,50 @@
             {% endif %}
         </div>
 
-        <div class="card-body px-4 pb-4 pt-0">
+        <div class="card-body px-4 pb-4 pt-2">
 
-            {% if cl.search_list %}
-                <div class="float-end mt-2 mb-3">
-                    <form method="GET" class="input-group" style="width: 250px; height: 32px;">
-                        <input type="text" name="q" class="form-control" value="{{ cl.q }}"
-                               placeholder="请输入关键字..."
-                               style="height: 32px; font-size: 14px; border-color: #d9d9d9; border-right: none; border-top-left-radius: 6px; border-bottom-left-radius: 6px; box-shadow: none;">
-                        <button type="submit" class="btn"
-                                style="height: 32px; border: 1px solid #d9d9d9; border-left: none; background: #fff; color: #bfbfbf; border-top-right-radius: 6px; border-bottom-right-radius: 6px; transition: all 0.3s;"
-                                onmouseover="this.style.color='#1677ff';"
-                                onmouseout="this.style.color='#bfbfbf';">
-                            <i class="fa-solid fa-magnifying-glass"></i>
-                        </button>
-                    </form>
+            {% if search_group_row_list %}
+                <div class="search-group">
+                    {% for row_obj in search_group_row_list %}
+                        <div class="search-row-container">
+                            {% for item in row_obj %}
+                                {{ item|safe }}
+                            {% endfor %}
+                        </div>
+                    {% endfor %}
                 </div>
             {% endif %}
+
+
+            {% if cl.search_list %}
+                <form method="GET" class="input-group float-end" style="width: 250px;">
+                    <input type="text" name="q" class="form-control" value="{{ cl.q }}"
+                           placeholder="请输入关键字..."
+                           style="height: 32px; font-size: 14px; border-color: #d9d9d9; border-right: none; box-shadow: none;">
+                    <button type="submit" class="btn"
+                            style="height: 32px; border: 1px solid #d9d9d9; border-left: none; background: #fff; color: #bfbfbf; transition: all 0.3s;"
+                            onmouseover="this.style.color='#1677ff';"
+                            onmouseout="this.style.color='#bfbfbf';">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                    </button>
+                </form>
+            {% endif %}
+
 
             <form action="" method="post">
                 {% csrf_token %}
 
                 {% if cl.action_dict %}
-                    <div class="d-flex align-items-center gap-2 mt-2 mb-3">
-                        <select name="action" class="form-select" style="width: 160px; height: 32px; padding: 2px 11px; font-size: 14px; border-color: #d9d9d9; border-radius: 6px; box-shadow: none; cursor: pointer;">
+                    <div class="d-flex align-items-center gap-2 float-start">
+                        <select name="action" class="form-select"
+                                style="width: 160px; height: 32px; padding: 2px 11px; font-size: 14px; border-color: #d9d9d9; border-radius: 4px; box-shadow: none; cursor: pointer;">
                             <option value="">请选择操作</option>
                             {% for func_name, func_text in cl.action_dict.items %}
                                 <option value="{{ func_name }}">{{ func_text }}</option>
                             {% endfor %}
                         </select>
-
                         <button type="submit" class="btn px-3 d-flex align-items-center justify-content-center"
-                                style="height: 32px; border: 1px solid #d9d9d9; background: #fff; color: #595959; border-radius: 6px; font-size: 14px; transition: all 0.3s;"
+                                style="height: 32px; border: 1px solid #d9d9d9; background: #fff; color: #595959; border-radius: 4px; font-size: 14px; transition: all 0.3s;"
                                 onmouseover="this.style.borderColor='#1677ff'; this.style.color='#1677ff';"
                                 onmouseout="this.style.borderColor='#d9d9d9'; this.style.color='#595959';">
                             执 行
@@ -55,19 +120,18 @@
                     </div>
                 {% endif %}
 
-                <div class="clearfix"></div>
+                <div class="clearfix mb-3"></div>
 
                 {% table cl %}
             </form>
 
-            <nav aria-label="Page navigation" class="mt-4">
+            <nav aria-label="Page navigation" class="mt-4 d-flex justify-content-end">
                 <ul class="pagination pagination-sm m-0">
                     {{ cl.page_html|safe }}
                 </ul>
             </nav>
 
         </div>
-
     </div>
 
 

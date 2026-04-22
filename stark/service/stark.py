@@ -7,16 +7,141 @@ from django.urls import path
 from django.db.models import Q
 from django.http import QueryDict
 from django.urls import reverse
+from django.utils.safestring import mark_safe
 from django.shortcuts import render, redirect
 from django.http import HttpResponse, JsonResponse
-from django.utils.safestring import mark_safe
+from django.db.models import ForeignKey, ManyToManyField
 
 
+class SearchGroupRow(object):
+
+    def __init__(self, title, queryset_or_tuple, option, query_dict):
+        """
+        :param title: 组合搜索的行标题（如：部门）
+        :param queryset_or_tuple: 数据库中查出来的数据
+        :param option: 对应的option配置图纸对象
+        :param query_dict: 当前请求的request.GET（深拷贝）
+        """
+        self.title = title
+        self.queryset_or_tuple = queryset_or_tuple
+        self.option = option
+        self.query_dict = query_dict
+
+    def __iter__(self):
+        yield '<div class="whole">'
+        yield self.title
+        yield '</div>'
+        yield '<div class="others">'
+
+        # 获取当前url中 该字段已有的查询值
+        origin_value_list = self.query_dict.getlist(self.option.field)
+
+        # 制造全部按钮
+        total_query_dict = self.query_dict.copy()
+        total_query_dict._mutable = True
+
+        if not origin_value_list:
+            yield "<a class='active' href='?%s'>全部</a>" % total_query_dict.urlencode()
+        else:
+            # 如果 URL 里有值，说明现在选中了某个具体部门
+            # 那么“全部”按钮的使命就是：把这个字段从字典里踢出去(pop)
+            total_query_dict.pop(self.option.field)
+            yield "<a href='?%s'>全部</a>" % total_query_dict.urlencode()
+
+        # 制造具体的选项按钮
+        for item in self.queryset_or_tuple:
+            text = self.option.get_text(item)
+            value = str(self.option.get_value(item))
+
+            query_dict = self.query_dict.copy()
+            query_dict._mutable = True
+
+            # 如果是单选配置
+            if not self.option.is_multi:
+                if value in origin_value_list:
+                    query_dict.pop(self.option.field)
+                    yield "<a class='active' href='?%s'>%s</a>" % (query_dict.urlencode(), text)
+                else:
+                    # 如果没被选中，就把它的值强行覆盖进去
+                    query_dict[self.option.field] = value
+                    yield "<a href='?%s'>%s</a>" % (query_dict.urlencode(), text)
+
+            # 如果是多选
+            else:
+                multi_value_list = query_dict.getlist(self.option.field)
+                if value in multi_value_list:
+                    # 如果已经被选中了，多选的取消操作是从列表里 remove 掉它
+                    multi_value_list.remove(value)
+                    query_dict.setlist(self.option.field, multi_value_list)
+                    yield "<a class='active' href='?%s'>%s</a>" % (query_dict.urlencode(), text)
+                else:
+                    # 如果没被选中，就把它的值 append 进去
+                    multi_value_list.append(value)
+                    query_dict.setlist(self.option.field, multi_value_list)
+                    yield "<a href='?%s'>%s</a>" % (query_dict.urlencode(), text)
+
+        yield '</div>'
 
 
-# 接管列表页面数据处理逻辑
+# 组合搜索字段参数配置类
+class Option(object):
+
+    def __init__(self, field, is_multi=False, db_condition=None, text_func=None, value_func=None):
+        """
+        :param field: 组合搜索的字段
+        :param is_multi: 是否支持多选
+        :param db_condition: 在数据库中根据该字段查询时的条件
+        :param text_func: 自定义页面上按钮显示的文字
+        :param value_func: 自定义拼接到url里的具体参数值
+        """
+        self.field = field
+        self.is_multi = is_multi
+        if not db_condition:
+            db_condition = {}
+        self.db_condition = db_condition
+        self.text_func = text_func
+        self.value_func = value_func
+
+        self.is_choice = False  # 默认是外键，后面通过反射获取字段对象时再进行具体改动
+
+    def get_db_condition(self, request, *args, **kwargs):
+        return self.db_condition
+
+    def get_text(self, item):
+        """统一获取文字的方式"""
+        if self.text_func:
+            return self.text_func(item)
+        if self.is_choice:
+            return item[1]
+        return str(item)
+
+    def get_value(self, item):
+        if self.value_func:
+            return self.value_func(item)
+        if self.is_choice:
+            return item[0]
+        return item.pk
+
+    def get_queryset_or_tuple(self, model_class, request, *args, **kwargs):
+        """根据字段去获取对应的数据"""
+        # 1. 拿到真实的字段对象
+        field_object = model_class._meta.get_field(self.field)
+        title = field_object.verbose_name
+
+        # 2. 获取关联数据，并实例化 SearchGroupRow
+        if isinstance(field_object, ForeignKey) or isinstance(field_object, ManyToManyField):
+            db_condition = self.get_db_condition(request, *args, **kwargs)
+            queryset = field_object.remote_field.model.objects.filter(**db_condition)
+            return SearchGroupRow(title, queryset, self, request.GET)
+        else:
+            # 如果是 choices，顺手把标志位改了，防止后面报错
+            self.is_choice = True
+            return SearchGroupRow(title, field_object.choices, self, request.GET)
+
+
+# 封装列表页面所需要的所有数据
 class ChangeList(object):
-    def __init__(self,config,data_list,q,search_list,page_html):
+    def __init__(self, config, data_list, q, search_list, page_html):
         self.config = config
         self.data_list = data_list
 
@@ -31,8 +156,7 @@ class ChangeList(object):
         self.list_display = config.get_list_display()
 
 
-
-# 通用crud配置类
+# 通用crud配置类，生成url和视图对应关系 + 默认配置
 class StarkConfig(object):
 
     def display_checkbox(self, obj=None, header=False):
@@ -107,7 +231,9 @@ class StarkConfig(object):
     list_display = []
     model_form_class = None
     action_list = []  # 单选框中的操作
-    search_list = []  # 允许进行搜索的字段
+    search_list = []  # 允许进行关键字搜索的字段
+
+    search_group = []
 
     def __init__(self, model_class, site):
         self.model_class = model_class
@@ -163,20 +289,45 @@ class StarkConfig(object):
                 con.children.append((f'{field}__contains', q))
         return q, search_list, con
 
+    def get_search_group(self):
+        return self.search_group
+
+    def get_search_group_condition(self, request):
+        """获取组合搜索的条件"""
+        condition = {}
+
+        # 获取允许组合搜获的字段在url中的查询条件
+        for option in self.get_search_group():
+            if option.is_multi:
+                values_list = request.GET.getlist(option.field)
+                if not values_list:
+                    continue
+                condition[f'{option.field}__in'] = values_list
+            else:
+                value = request.GET.get(option.field)
+                if not value:
+                    continue
+                condition[option.field] = value
+
+        return condition
+
     # 批量删除操作
     def multi_delete(self, request):
         pk_list = request.POST.getlist('pk')
         self.model_class.objects.filter(pk__in=pk_list).delete()
+
     # 一切皆对象
     multi_delete.text = '批量删除'
     action_list.append(multi_delete)
 
-    def changelist_view(self, request):
-
-        # 获取搜索条件
+    def changelist_view(self, request, *args, **kwargs):
+        # 获取关键字搜索条件
         q, search_list, con = self.get_search_condition(request)
+        # 多字段组合搜索的条件字典
+        search_group_condition = self.get_search_group_condition(request)
+
         # 表中数据
-        queryset = self.model_class.objects.filter(con).order_by(*self.get_order_by())
+        queryset = self.model_class.objects.filter(con).filter(**search_group_condition).order_by(*self.get_order_by())
 
         # 分页
         page_object = Pagination(
@@ -188,8 +339,15 @@ class StarkConfig(object):
         data_list = queryset[page_object.start:page_object.end]
         page_html = page_object.page_html()
 
-        cl = ChangeList(self,data_list,q,search_list,page_html)
+        cl = ChangeList(self, data_list, q, search_list, page_html)
 
+        # 组合搜索渲染的调用
+        search_group_row_list = []
+        search_group = self.get_search_group()  # 拿到配置的 [Option('depart',xxx,xxx), ...]
+        for option_obj in search_group:
+            # 疯狂榨取 Option：让它去拿数据，并吐出打包好的 Row 机器
+            row = option_obj.get_queryset_or_tuple(self.model_class, request, *args, **kwargs)
+            search_group_row_list.append(row)
 
         if request.method == 'POST':
             # 获取选择的操作
@@ -204,10 +362,10 @@ class StarkConfig(object):
 
         context = {
             'cl': cl,
-            'data_list': data_list,
+            'search_group_row_list': search_group_row_list
         }
 
-        return render(request,'stark/changelist.html',context)
+        return render(request, 'stark/changelist.html', context)
 
     def add_view(self, request):
         ModelFormClass = self.get_model_form_class()
@@ -329,7 +487,7 @@ class StarkConfig(object):
         return del_url
 
 
-# 表的注册，路由的动态生成
+# 保存 数据库类 和 处理该类的对象 的对应关系 + 路由的分发
 class StarkSite(object):
     def __init__(self):
         """
