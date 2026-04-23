@@ -51,7 +51,7 @@
     background-color: #fff;
     border-radius: 0 0 6px 6px;
     box-shadow: 0 6px 16px rgba(0,0,0,0.08);
-    min-width: 120px;
+    min-width: 130px;
     overflow: hidden;
     z-index: 1001;
 }
@@ -67,6 +67,8 @@
     color: #333;
     font-size: 14px;
     transition: background 0.2s;
+    white-space: nowrap !important;
+    display: block;
 }
 
 .custom-dropdown a:hover {

@@ -1,0 +1,230 @@
+{% extends 'layout.html' %}
+{% load static %}
+
+{% block css %}
+    <link rel="stylesheet" href="{% static 'rbac/plugin/tom-select/css/tom-select.bootstrap5.min.css' %}">
+    <style>
+        /* 1. 全局 AntD 风格输入框改造 */
+        .card-body .form-control {
+            border: 1px solid #d9d9d9;
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 14px;
+            color: #333;
+            box-shadow: none !important;
+            transition: all 0.3s;
+        }
+
+        .card-body .form-control:focus {
+            border-color: #1677ff;
+            box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.1) !important;
+            outline: none;
+        }
+
+        /* 2. 图标单选网格容器 */
+        .icon-radio-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 12px;
+            background: #fafafa;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px dashed #d9d9d9;
+            max-height: 400px; /* 防止图标过多拉得太长 */
+            overflow-y: auto;
+        }
+
+        /* 3. 单个图标项样式 */
+        .icon-item {
+            border: 1px solid #d9d9d9;
+            background: white;
+            border-radius: 6px;
+            padding: 15px 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .icon-item input[type="radio"] {
+            display: none; /* 彻底隐藏原生 radio */
+        }
+
+        .icon-item:hover {
+            border-color: #4096ff;
+            color: #4096ff;
+        }
+
+        /* 4. 选中激活状态 */
+        .icon-item.active {
+            border-color: #1677ff;
+            background-color: #e6f4ff;
+            color: #1677ff;
+        }
+
+        /* 选中后的打勾标记 (伪元素) */
+        .icon-item.active::after {
+            content: "\f058"; /* FontAwesome check-circle */
+            font-family: "" Font Awesome 7 Brands ";
+            font-weight: 900;
+            position: absolute;
+            top: 4px;
+            right: 6px;
+            font-size: 14px;
+            color: #1677ff;
+        }
+
+        .icon-item i {
+            font-size: 24px;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .icon-item span {
+            font-size: 12px;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <div class="card border-0 mx-auto mt-4"
+         style="box-shadow: 0 1px 2px 0 rgba(0,0,0,0.03); max-width: 850px; border-radius: 8px;">
+
+        <!-- 表单标题 -->
+        <div class="card-header bg-white py-3 border-bottom-0 pt-4 px-4">
+            <h6 class="mb-0 fw-bold" style="color: #262626; font-size: 16px;">
+                <i class="fa-solid fa-pen-to-square me-2" style="color: #8c8c8c;"></i>{{ title|default:"编辑信息" }}
+            </h6>
+        </div>
+
+        <div class="card-body px-4 pb-4">
+            <form action="" method="post" novalidate class="row g-4">
+                {% csrf_token %}
+
+                <!-- 全局钩子里面抛出错误，未指定字段时 -->
+                {% if form.non_field_errors %}
+                    <div class="alert alert-danger">
+                        {{ form.non_field_errors }}
+                    </div>
+                {% endif %}
+
+                <!-- 表单生成 -->
+                {% for field in form %}
+
+                    <!-- 图标字段 -->
+                    {% if field.name == 'icon' %}
+                        <div class="col-12">
+                            <label class="form-label mb-2" style="color: #595959; font-weight: 500; font-size: 14px;">
+                                {{ field.label }}
+                            </label>
+
+                            <div class="icon-radio-container">
+                                {% for radio in field %}
+                                    {# Django ModelForm 渲染 Radio 时，如果是编辑模式且已有值，radio.data.selected 会为 True #}
+                                    <label class="icon-item {% if radio.data.selected %}active{% endif %}">
+                                        {{ radio.tag }}
+                                        {{ radio.choice_label|safe }}
+                                    </label>
+                                {% endfor %}
+                            </div>
+
+                            {% if field.errors %}
+                                <div class="text-danger mt-2" style="font-size: 13px;">
+                                    <i class="fa-solid fa-circle-exclamation me-1"></i>{{ field.errors.0 }}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- 普通字段 -->
+                    {% else %}
+                        <div class="col-md-6">
+                            <label class="form-label mb-2" style="color: #595959; font-weight: 500; font-size: 14px;"
+                                   for="{{ field.id_for_label }}">
+                                {{ field.label }}
+                                {% if field.help_text %}
+                                    <span class="text-muted fw-normal fs-6">（{{ field.help_text }}）</span>
+                                {% endif %}
+
+                            </label>
+
+                            {{ field }}
+
+                            {% if field.errors %}
+                                <div class="text-danger mt-2" style="font-size: 13px;">
+                                    <i class="fa-solid fa-circle-exclamation me-1"></i>{{ field.errors.0 }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+
+                {% endfor %}
+
+
+                <div class="col-12 mt-5 pt-4 d-flex gap-3" style="border-top: 1px solid #f0f0f0;">
+
+                    <button type="submit" class="btn px-4"
+                            style="background-color: #1677ff; color: white; border: none; border-radius: 6px; font-size: 14px; box-shadow: 0 2px 0 rgba(5, 145, 255, 0.1); transition: opacity 0.3s;"
+                            onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
+                        保 存
+                    </button>
+
+                    <a href="{% url 'rbac:menu_list' %}" class="btn px-4"
+                       style="background-color: white; color: #595959; border: 1px solid #d9d9d9; border-radius: 6px; font-size: 14px; transition: all 0.3s; text-decoration: none; display: inline-block;"
+                       onmouseover="this.style.borderColor='#1677ff'; this.style.color='#1677ff';"
+                       onmouseout="this.style.borderColor='#d9d9d9'; this.style.color='#595959';">
+                        返 回
+                    </a>
+
+                </div>
+
+            </form>
+        </div>
+
+    </div>
+{% endblock %}
+
+{% block js %}
+    <script src="{% static 'rbac/plugin/tom-select/js/tom-select.complete.min.js' %}"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // 1. TomSelect 初始化
+            document.querySelectorAll('.tom-select-multiple').forEach((el) => {
+                new TomSelect(el, {
+                    create: false,
+                    placeholder: "请选择...",
+                    plugins: ['remove_button'],
+                });
+            });
+
+            // 2. 图标点选交互逻辑
+            const container = document.querySelector('.icon-radio-container');
+
+            if (container) {
+                container.addEventListener('click', function (e) {
+                    // 找到点击点向上最近的 .icon-item 元素
+                    const targetItem = e.target.closest('.icon-item');
+
+                    if (targetItem) {
+                        // 1. 移除所有项的 active 类
+                        container.querySelectorAll('.icon-item').forEach(item => {
+                            item.classList.remove('active');
+                        });
+
+                        // 2. 给当前点击项加上 active
+                        targetItem.classList.add('active');
+
+                        // 3. 选中内部的 radio
+                        const radio = targetItem.querySelector('input[type="radio"]');
+                        if (radio) {
+                            radio.checked = true;
+                        }
+                    }
+                });
+            }
+        });
+    </script>
+{% endblock %}

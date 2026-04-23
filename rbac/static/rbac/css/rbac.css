@@ -1,0 +1,90 @@
+/* rbac.css */
+.hidden {
+    display: none !important;
+}
+
+.static-menu a {
+    display: flex;
+    align-items: center;
+    padding: 15px 20px;
+    text-decoration: none;
+    color: #333;
+    font-weight: 500;
+    background-color: #ffffff;
+    border-bottom: 1px solid #f0f0f0;
+    transition: all 0.3s;
+}
+
+.static-menu a:hover {
+    color: #1677ff;
+    background-color: #fafafa;
+}
+
+
+.static-menu a.active {
+    color: #1677ff;
+    background-color: #e6f4ff;
+    border-left: 3px solid #1677ff;
+    padding-left: 17px;
+}
+
+.static-menu .icon-wrap {
+    width: 28px;
+    display: inline-block;
+    color: inherit;
+}
+
+
+.multi-menu .item {
+    background-color: #ffffff;
+}
+
+.multi-menu .item > .title {
+    padding: 12px 20px;
+    font-size: 14px;
+    font-weight: 400;
+    cursor: pointer;
+    color: #595959;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid #f0f0f0;
+    transition: all 0.3s;
+}
+
+.multi-menu .item > .title:hover {
+    color: #1677ff;
+}
+
+.multi-menu .item > .title .icon-wrap {
+    width: 24px;
+    display: inline-block;
+    color: inherit;
+    font-size: 14px;
+}
+
+.multi-menu .item > .body {
+    background-color: #fafafa;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.multi-menu .item > .body a {
+    display: block;
+    padding: 10px 20px 10px 42px;
+    font-size: 13px;
+    color: #595959;
+    border-left: 3px solid transparent;
+    transition: all 0.2s;
+}
+
+.multi-menu .item > .body a:hover {
+    color: #1677ff;
+}
+
+/* Active 状态的灵魂：浅蓝底色 + 左侧高亮边框 */
+.multi-menu .item > .body a.active {
+    color: #1677ff;
+    background-color: #e6f4ff;
+    border-left: 3px solid #1677ff;
+    font-weight: 600;
+}

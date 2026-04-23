@@ -1,0 +1,54 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+    <div class="card border-0 mx-auto mt-3" style="box-shadow: 0 1px 2px 0 rgba(0,0,0,0.03); max-width: 100%;">
+
+        <div class="card-header bg-white py-3 border-bottom-0 d-flex justify-content-between align-items-center px-4">
+            <h6 class="mb-0 fw-bold" style="color: #333;">
+                <i class="fa-solid fa-user-shield me-2" style="color: #8c8c8c;"></i>角色管理
+            </h6>
+            <a href="/rbac/role/add/" class="btn btn-sm px-3"
+               style="border: 1px solid #d9d9d9; color: #595959; background: #fff; transition: all 0.3s;"
+               onmouseover="this.style.borderColor='#1677ff'; this.style.color='#1677ff';"
+               onmouseout="this.style.borderColor='#d9d9d9'; this.style.color='#595959';">
+                <i class="fa-solid fa-plus"></i> 添加角色
+            </a>
+        </div>
+
+        <div class="card-body px-4 pb-4 pt-0">
+            <table class="table align-middle mb-0">
+                <thead>
+                <tr style="color: #8c8c8c; font-size: 13px; border-bottom: 1px solid #f0f0f0;">
+                    <th class="py-3 border-0 fw-normal">ID</th>
+                    <th class="py-3 border-0 fw-normal">角色名称</th>
+                    <th class="py-3 border-0 fw-normal">权限个数</th>
+                    <th class="text-end py-3 border-0 fw-normal">操作</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for row in roles %}
+                    <tr>
+                        <td style="color: #8c8c8c; border-bottom: 1px solid #f9f9f9;">{{ row.id }}</td>
+                        <td style="color: #333; font-weight: 500; border-bottom: 1px solid #f9f9f9;">{{ row.title }}</td>
+                        <td style="color: #595959; border-bottom: 1px solid #f9f9f9;">
+                            {{ row.permissions.count }}
+                        </td>
+                        <td class="text-end" style="border-bottom: 1px solid #f9f9f9;">
+                            <a href="/rbac/role/edit/{{ row.id }}/" class="text-decoration-none me-3"
+                               style="color: #bfbfbf; transition: 0.3s;" onmouseover="this.style.color='#1677ff'"
+                               onmouseout="this.style.color='#bfbfbf'">
+                                <i class="fa-solid fa-pen-to-square"></i>
+                            </a>
+                            <a href="/rbac/role/del/{{ row.id }}/" class="text-decoration-none"
+                               style="color: #bfbfbf; transition: 0.3s;" onmouseover="this.style.color='#ff4d4f'"
+                               onmouseout="this.style.color='#bfbfbf'">
+                                <i class="fa-solid fa-trash"></i>
+                            </a>
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% endblock %}

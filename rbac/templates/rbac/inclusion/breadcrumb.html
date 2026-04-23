@@ -1,0 +1,14 @@
+<ol class="breadcrumb mb-0 align-items-center" style="font-size: 14px;">
+    {% for breadcrumb in breadcrumb_list %}
+        {% if forloop.last %}
+            <li class="breadcrumb-item active" aria-current="page">
+                {{ breadcrumb.title }}
+            </li>
+        {% else %}
+            <li class="breadcrumb-item">
+                <a href="{{ breadcrumb.url }}"
+                   class="text-decoration-none d-flex align-items-center gap-2">{{ breadcrumb.title }}</a>
+            </li>
+        {% endif %}
+    {% endfor %}
+</ol>

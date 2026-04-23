@@ -1,0 +1,21 @@
+<div class="multi-menu">
+    {% for item in menu_list %}
+        <div class="item">
+
+            <div class="title">
+                <div class="left-part">
+                    <span class="icon-wrap"><i class="{{ item.icon }}"></i></span>
+                    <span>{{ item.title }}</span>
+                </div>
+                <i class="fa-solid fa-angle-down" style="font-size: 12px; color: #bfbfbf;"></i>
+            </div>
+
+            <div class="body {{ item.class }}">
+                {% for child in item.children %}
+                    <a class="{{ child.class }}" href="{{ child.url }}">{{ child.title }}</a>
+                {% endfor %}
+            </div>
+
+        </div>
+    {% endfor %}
+</div>

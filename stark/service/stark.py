@@ -86,7 +86,7 @@ class SearchGroupRow(object):
 # 组合搜索字段参数配置类
 class Option(object):
 
-    def __init__(self, field, is_multi=False, db_condition=None, text_func=None, value_func=None):
+    def __init__(self, field, is_multi=False, db_condition=None, text_func=None, value_func=None, is_choice=False):
         """
         :param field: 组合搜索的字段
         :param is_multi: 是否支持多选
@@ -102,7 +102,7 @@ class Option(object):
         self.text_func = text_func
         self.value_func = value_func
 
-        self.is_choice = False  # 默认是外键，后面通过反射获取字段对象时再进行具体改动
+        self.is_choice = is_choice
 
     def get_db_condition(self, request, *args, **kwargs):
         return self.db_condition
@@ -227,13 +227,12 @@ class StarkConfig(object):
         """
         return mark_safe(edit_del_icon)
 
-    order_by = []
-    list_display = []
+    order_by = []       # 字段排序方式
+    list_display = []   # 显示的列
     model_form_class = None
-    action_list = []  # 单选框中的操作
-    search_list = []  # 允许进行关键字搜索的字段
-
-    search_group = []
+    action_list = []    # 单选框中的操作
+    search_list = []    # 允许进行关键字搜索的字段
+    search_group = []   # 组合搜索字段实例化的option对象
 
     def __init__(self, model_class, site):
         self.model_class = model_class
@@ -317,8 +316,8 @@ class StarkConfig(object):
         self.model_class.objects.filter(pk__in=pk_list).delete()
 
     # 一切皆对象
-    multi_delete.text = '批量删除'
-    action_list.append(multi_delete)
+    # multi_delete.text = '批量删除'
+    # action_list.append(multi_delete)
 
     def changelist_view(self, request, *args, **kwargs):
         # 获取关键字搜索条件

@@ -1,0 +1,176 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>CRM</title>
+    <link rel="stylesheet" href="{% static 'stark/plugin/bootstrap-5.3.0-alpha2-dist/css/bootstrap.min.css' %}"/>
+    <link rel="stylesheet" href="{% static 'stark/plugin/fontawesome-free-7.2.0-web/css/all.min.css' %}"/>
+    <link rel="stylesheet" href="{% static 'stark/plugin/tom-select/css/tom-select.bootstrap5.min.css' %}">
+
+    <link rel="stylesheet" href="{% static 'stark/css/commons.css' %}"/>
+    <link rel="stylesheet" href="{% static 'stark/css/nav.css' %}"/>
+
+
+    <style>
+        /* 页面整体框架骨架 */
+        .pg-body {
+            display: flex;
+            height: calc(100vh - 64px); /* 配合新导航栏的高度 */
+            background-color: #f4f6f9; /* 给整个背景加一点极浅的灰色，让白色内容区更有立体感 */
+        }
+
+        .left-menu {
+            width: 220px;
+            background-color: #ffffff;
+            border-right: 1px solid #eef0f3;
+            overflow-y: auto;
+        }
+
+        .right-body {
+            flex-grow: 1;
+            padding: 24px;
+            overflow-y: auto;
+        }
+
+        /* 已经帮你把 luffy 改成了 crm，并优化了阴影效果 */
+        .crm-container {
+            background: #fff;
+            padding: 24px;
+            border-radius: 8px;
+            box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.04);
+        }
+
+        /* ================= 👇 导航栏现代化终极美化补丁 👇 ================= */
+        /* 1. 整体质感提升 */
+        .pg-header {
+            height: 64px !important; /* 稍微加高一点，更大气 */
+            background-color: #1e1e2d !important; /* 高级暗夜蓝黑，取代死板的纯黑蓝 */
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05) !important;
+        }
+
+        /* 2. Logo 区域隔离感 */
+        .logo-area {
+            background-color: #1a1a27 !important; /* 比主导航略深一点点 */
+            border-right: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        /* 3. 导航按钮高级交互 (干掉难看的蓝色背景块) */
+        .nav-menu-item {
+            color: #a2a3b7 !important; /* 默认用柔和的灰白色 */
+            font-weight: 500;
+            position: relative;
+            background-color: transparent !important; /* 强制去掉大色块背景 */
+        }
+        .nav-menu-item:hover {
+            color: #ffffff !important; /* 悬浮时文字变亮 */
+        }
+
+        /* 🔥 核心灵魂：底部炫酷滑动线条 */
+        .nav-menu-item::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            width: 0;
+            height: 3px;
+            background-color: #0d6efd; /* 品牌蓝 */
+            transition: all 0.3s ease;
+            transform: translateX(-50%);
+            border-radius: 3px 3px 0 0;
+        }
+        .nav-menu-item:hover::after {
+            width: 100%; /* 鼠标放上去，底部蓝线平滑展开 */
+        }
+
+        /* 4. 头像与通知微调 */
+        .user-avatar {
+            border: 2px solid rgba(255,255,255,0.1) !important;
+            padding: 2px;
+        }
+        .badge.bg-danger {
+            background-color: #f1416c !important; /* 换成更现代的马卡龙红 */
+            border: 2px solid #1e1e2d; /* 边缘镂空效果 */
+        }
+
+        /* 5. 完美无瑕的下拉菜单 (顺手解决了折行问题) */
+        .custom-dropdown {
+            top: 60px !important;
+            border: 1px solid #f0f0f0;
+            border-radius: 8px !important;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08) !important;
+            padding: 8px 0 !important;
+            min-width: 140px !important;
+        }
+        .custom-dropdown a {
+            padding: 10px 24px !important;
+            color: #4b566b !important;
+            font-weight: 500;
+            white-space: nowrap !important; /* 绝对防折行 */
+        }
+        .custom-dropdown a:hover {
+            background-color: #f3f6f9 !important;
+            color: #0d6efd !important;
+            padding-left: 28px !important; /* 悬浮时文字微微右移，极具动感 */
+        }
+        /* ================= 👆 导航栏美化补丁结束 👆 ================= */
+
+    </style>
+
+    {% block css %}{% endblock %}
+
+</head>
+<body>
+
+<header class="pg-header d-flex justify-content-between align-items-center">
+    <div class="d-flex align-items-center h-100">
+        <div class="logo-area d-flex align-items-center justify-content-center">
+            <a href="#" class="text-decoration-none text-white fs-5 fw-bold d-flex align-items-center">
+                <i class="fa-solid fa-ship me-2"></i> Stark组件
+            </a>
+        </div>
+        <div class="d-flex h-100">
+            <a class="nav-menu-item">资产管理</a>
+            <a class="nav-menu-item">用户信息</a>
+        </div>
+    </div>
+
+    <div class="d-flex align-items-center h-100 pe-4">
+        <a class="nav-menu-item position-relative">
+            <i class="fa-solid fa-bell me-1"></i> 通知
+            <span class="position-absolute top-25 start-75 translate-middle badge rounded-pill bg-danger">4</span>
+        </a>
+        <div class="nav-menu-item position-relative ms-2">
+            <img class="user-avatar rounded-circle" src="{% static 'stark/imgs/default.png' %}">
+            <span class="ms-2">Admin</span>
+            <div class="custom-dropdown">
+                <a href="#"><i class="fa-solid fa-user me-2 text-muted"></i>个人信息</a>
+                <a href="#"><i class="fa-solid fa-right-from-bracket me-2 text-muted"></i>注销</a>
+            </div>
+        </div>
+    </div>
+</header>
+
+<div class="pg-body">
+    <aside class="left-menu">
+
+
+    </aside>
+    <main class="right-body">
+        <nav aria-label="breadcrumb" class="mb-3 bg-white p-3 rounded shadow-sm border-0">
+            </nav>
+
+        {% block content %}{% endblock %}
+
+    </main>
+</div>
+
+
+<script src="{% static 'stark/plugin/bootstrap-5.3.0-alpha2-dist/js/bootstrap.bundle.min.js' %}"></script>
+<script src="{% static 'stark/plugin/tom-select/js/tom-select.complete.min.js' %}"></script>
+
+{% block js %}{% endblock %}
+
+</body>
+</html>

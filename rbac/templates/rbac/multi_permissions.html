@@ -1,0 +1,279 @@
+{% extends 'layout.html' %}
+{% load static %}
+
+{% block content %}
+<style>
+    /* ========== Ant Design 风格 CSS ========== */
+    .rbac-container {
+        padding: 24px;
+        background-color: #f5f5f5; /* 页面底层浅灰背景 */
+        min-height: calc(100vh - 60px);
+    }
+
+    /* 卡片容器 */
+    .antd-card {
+        background: #ffffff;
+        border-radius: 8px;
+        border: 1px solid #f0f0f0;
+        margin-bottom: 24px;
+        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+        overflow: hidden; /* 让圆角生效 */
+    }
+
+    /* 卡片头部 */
+    .antd-card-header {
+        padding: 16px 24px;
+        border-bottom: 1px solid #f0f0f0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background-color: #fff;
+    }
+
+    .antd-card-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #262626;
+        margin: 0;
+    }
+
+    /* 表格统一样式 */
+    .antd-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 0;
+    }
+
+    .antd-table th {
+        background-color: #fafafa;
+        color: #262626;
+        font-weight: 500;
+        padding: 12px 16px;
+        border-bottom: 1px solid #f0f0f0;
+        text-align: left;
+    }
+
+    .antd-table td {
+        padding: 12px 16px;
+        border-bottom: 1px solid #f0f0f0;
+        color: #595959;
+        vertical-align: middle;
+    }
+
+    .antd-table tbody tr:hover {
+        background-color: #fafafa;
+    }
+
+    /* 按钮统一样式 */
+    .antd-btn-primary {
+        background-color: #1677ff;
+        color: #fff;
+        border: none;
+        border-radius: 6px;
+        padding: 5px 16px;
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.3s;
+        box-shadow: 0 2px 0 rgba(5, 145, 255, 0.1);
+    }
+
+    .antd-btn-primary:hover {
+        background-color: #4096ff;
+        color: #fff;
+    }
+
+    .antd-btn-danger-text {
+        color: #ff4d4f;
+        font-size: 16px;
+        transition: color 0.3s;
+    }
+
+    .antd-btn-danger-text:hover {
+        color: #ff7875;
+    }
+
+    /* 输入框与下拉框样式拦截 (针对 Django 自动生成的 form 组件) */
+    .antd-table input[type="text"],
+    .antd-table select {
+        width: 100%;
+        padding: 5px 11px;
+        color: #262626;
+        background-color: #ffffff;
+        border: 1px solid #d9d9d9;
+        border-radius: 6px;
+        transition: all 0.2s;
+        font-size: 14px;
+    }
+
+    .antd-table input[type="text"]:focus,
+    .antd-table select:focus {
+        border-color: #1677ff;
+        box-shadow: 0 0 0 2px rgba(5, 145, 255, 0.1);
+        outline: none;
+    }
+
+    /* 错误信息样式 */
+    .error-msg {
+        display: block;
+        color: #ff4d4f;
+        font-size: 12px;
+        margin-top: 4px;
+    }
+</style>
+
+<div class="rbac-container">
+
+    <form method="post" action="?type=generate">
+        {% csrf_token %}
+        {{ generate_formset.management_form }}
+
+        <div class="antd-card">
+            <div class="antd-card-header">
+                <div class="antd-card-title">
+                    <i class="fa-solid fa-square-plus me-2" style="color: #1677ff;"></i> 待新建权限列表
+                </div>
+                <button type="submit" class="antd-btn-primary">
+                    <i class="fa-solid fa-save me-1"></i> 批量新建
+                </button>
+            </div>
+
+            <table class="antd-table">
+                <thead>
+                    <tr>
+                        <th style="width: 60px;">序号</th>
+                        <th>名称</th>
+                        <th>URL</th>
+                        <th>别名</th>
+                        <th>菜单</th>
+                        <th>父权限</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for form in generate_formset %}
+                    <tr>
+                        <td><span style="color: #8c8c8c;">{{ forloop.counter }}</span></td>
+                        {% for field in form %}
+                        <td>
+                            {{ field }}
+                            {% if field.errors.0 %}
+                                <span class="error-msg"><i class="fa-solid fa-circle-exclamation"></i> {{ field.errors.0 }}</span>
+                            {% endif %}
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </form>
+
+    <div class="antd-card">
+        <div class="antd-card-header">
+            <div class="antd-card-title">
+                <i class="fa-solid fa-trash-can me-2" style="color: #ff4d4f;"></i> 待删除权限列表
+            </div>
+        </div>
+
+        <table class="antd-table">
+            <thead>
+                <tr>
+                    <th style="width: 60px;">序号</th>
+                    <th>名称</th>
+                    <th>URL</th>
+                    <th>别名</th>
+                    <th style="width: 80px; text-align: center;">操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in delete_row_list %}
+                <tr>
+                    <td><span style="color: #8c8c8c;">{{ forloop.counter }}</span></td>
+                    <td>{{ row.title }}</td>
+                    <td><code style="color: #d63384; background: #fff0f6; padding: 2px 6px; border-radius: 4px;">{{ row.url }}</code></td>
+                    <td>{{ row.name }}</td>
+                    <td style="text-align: center;">
+                        <a class="antd-btn-danger-text" href="{% url 'rbac:multi_permissions_del' pk=row.id %}" title="删除此权限">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" style="text-align: center; padding: 40px 0; color: #bfbfbf;">
+                        <i class="fa-solid fa-inbox fa-2x mb-2"></i><br>暂无需要删除的权限
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <form method="post" action="?type=update">
+        {% csrf_token %}
+        {{ update_formset.management_form }}
+
+        <div class="antd-card">
+            <div class="antd-card-header">
+                <div class="antd-card-title">
+                    <i class="fa-solid fa-pen-to-square me-2" style="color: #faad14;"></i> 待更新权限列表
+                </div>
+                <button type="submit" class="antd-btn-primary" style="background-color: #faad14; box-shadow: 0 2px 0 rgba(250, 173, 20, 0.1);">
+                    <i class="fa-solid fa-save me-1"></i> 批量更新
+                </button>
+            </div>
+
+            <table class="antd-table">
+                <thead>
+                    <tr>
+                        <th style="width: 60px;">序号</th>
+                        <th>名称</th>
+                        <th>URL</th>
+                        <th>别名</th>
+                        <th>菜单</th>
+                        <th>父权限</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for form in update_formset %}
+                    <tr>
+                        <td><span style="color: #8c8c8c;">{{ forloop.counter }}</span></td>
+                        {% for field in form %}
+                            {% if forloop.first %}
+                                {{ field }}
+                            {% else %}
+                                <td>
+                                    {{ field }}
+                                    {% if field.errors.0 %}
+                                        <span class="error-msg"><i class="fa-solid fa-circle-exclamation"></i> {{ field.errors.0 }}</span>
+                                    {% endif %}
+                                </td>
+                            {% endif %}
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </form>
+
+</div>
+{% endblock %}
+
+{% block js %}
+    <script src="{% static 'rbac/plugin/tom-select/js/tom-select.complete.min.js' %}"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // 初始化你的 TomSelect
+            document.querySelectorAll('.tom-select-single').forEach((el) => {
+                new TomSelect(el, {
+                    create: false,
+                    placeholder: "请点击并搜索...",
+                    sortField: {
+                        field: "text",
+                        direction: "asc"
+                    }
+                });
+            });
+        });
+    </script>
+{% endblock %}
