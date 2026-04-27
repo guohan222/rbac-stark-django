@@ -6,7 +6,7 @@ register = Library()
 
 
 @register.inclusion_tag('rbac/inclusion/static_menu.html')
-def menu(request):
+def static_menu(request):
     """生成一级菜单"""
 
     menu_list = request.session.get(settings.MENU_SESSION_KEY)

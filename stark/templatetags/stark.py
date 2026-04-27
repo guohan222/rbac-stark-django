@@ -1,4 +1,4 @@
-from types import FunctionType
+from types import FunctionType,MethodType
 from django.template import Library
 
 register = Library()
@@ -8,6 +8,7 @@ def header_list(cl):
     if cl.list_display:
         for field_or_func in cl.list_display:
             # 区分要展示的列是自定义的还是表中的字段
+            # if callable(field_or_func):
             if isinstance(field_or_func, FunctionType):
                 # 给自定义列的函数，表示现在函数功能是表头
                 verbose_name = field_or_func(cl.config, obj=None, header=True)
@@ -31,6 +32,7 @@ def body_list(cl):
 
         # 反射，获取该对象中要展示的属性（字段） or  自定义列的数据内容
         for field_or_func in cl.list_display:
+            # if callable(field_or_func):
             if isinstance(field_or_func, FunctionType):
                 tr_list.append(field_or_func(cl.config, obj=row))
             else:

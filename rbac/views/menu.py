@@ -1,13 +1,18 @@
+
+
 from rbac import models
 from rbac.service.routes import get_all_url_dict
 from rbac.form.menu import MenuModelForm, SecondMenuModelForm, PermissionModelForm, MultiAddPermissionForm, MultiEditPermissionForm
 
 
 from django.urls import reverse
+from django.conf import settings
 from collections import OrderedDict
 from django.forms import formset_factory
 from django.shortcuts import render, redirect
 from django.core.exceptions import ValidationError
+from django.utils.module_loading import import_string
+
 
 
 # Create your views here.
@@ -341,3 +346,105 @@ def multi_permissions_del(request, pk):
 
     models.Permission.objects.filter(id=pk).delete()
     return redirect('rbac:menu_list')
+
+
+def distribute_permissions(request):
+    """
+    用户、角色、权限分配
+    :param request:
+    :return:
+    """
+    user_id = request.GET.get('uid')
+    role_id = request.GET.get('rid')
+    user_class = import_string(settings.USER_MODEL_PATH)
+
+    try:
+        user_id = int(user_id)  # 尝试转数字
+        if not user_class.objects.filter(pk=user_id).exists():
+            user_id = 0
+    except (TypeError, ValueError):
+        user_id = 0  # 传了 None 或乱七八糟的字母，直接归零
+    try:
+        role_id = int(role_id)
+        if not models.Role.objects.filter(pk=role_id).exists():
+            role_id = 0
+    except (TypeError, ValueError):
+        role_id = 0
+
+
+    if request.method == 'POST':
+        post_type = request.POST.get('type')
+
+        # 用户分配角色
+        if post_type == 'role':
+            # 获取前端打钩的所有角色 ID
+            role_id_list = request.POST.getlist('roles')
+            if user_id:
+                user_obj = user_class.objects.filter(pk=user_id).first()
+                if user_obj:
+                    # Django ORM 操作关系管理对象：.set() 会自动帮你清空旧的关系，绑定新的关系
+                    user_obj.roles.set(role_id_list)
+
+        elif post_type == 'permission':
+            # 获取前端打钩的所有权限 ID
+            permission_id_list = request.POST.getlist('permissions')
+            if role_id:
+                role_obj = models.Role.objects.filter(pk=role_id).first()
+                if role_obj:
+                    role_obj.permissions.set(permission_id_list)
+
+
+
+    # 获取选中用户的角色信息 及 全部用户、角色信息
+    user_obj = user_class.objects.filter(pk=user_id).first()
+    user_has_roles_dict = {item.pk:None for item in user_obj.roles.all()} if user_obj else {}
+    all_users = user_class.objects.all()
+    all_roles = models.Role.objects.all()
+
+
+    # 获取选中角色的权限信息
+    role_obj = models.Role.objects.filter(pk=role_id).first()
+    role_has_permissions_dict = {item.pk:None for item in role_obj.permissions.all()} if role_obj else {}
+
+
+    # 菜单与非菜单组装树
+    all_permissions = {}
+    # 二级菜单字典
+    second_menu_dict = {}
+    # 所有一级菜单
+    menu_objs = models.Menu.objects.values('id','title')
+    # 所有权限
+    permission_objs = list(models.Permission.objects.values('id','title','menu_id','pid_id'))
+
+    for item in menu_objs:
+        item['children'] = []
+        all_permissions[item['id']] = item
+
+    # 将二级菜单挂载到一级菜单下&构建二级菜单字典
+    for item in permission_objs:
+        menu_id = item['menu_id']
+        if not menu_id:
+            continue
+        item['children'] = []
+        all_permissions[menu_id]['children'].append(item)
+        second_menu_dict[item['id']] = item
+
+    # 将非菜单权限挂载到二级菜单下
+    for item in permission_objs:
+        pid_id = item['pid_id']
+        if not pid_id:
+            continue
+        second_menu_dict[pid_id]['children'].append(item)
+
+
+    context = {
+        'user_id':user_id,
+        'role_id':role_id,
+        'all_users':all_users,
+        'all_roles':all_roles,
+        'all_permissions':all_permissions,
+        'user_has_roles_dict':user_has_roles_dict,
+        'role_has_permissions_dict':role_has_permissions_dict,
+    }
+
+    return render(request,'rbac/distribute_permissions.html',context)

@@ -1,0 +1,275 @@
+{% extends 'layout.html' %}
+{% load static %}
+
+{% block css %}
+    <style>
+        /* 专属 AntD 风格表格卡片补丁 */
+        .menu-card {
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+            border: 1px solid #f0f0f0;
+            border-radius: 8px;
+            height: 100%; /* 让三列等高 */
+        }
+
+        .menu-card .card-header {
+            background-color: #fafafa;
+            border-bottom: 1px solid #f0f0f0;
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+        }
+
+        .menu-table th {
+            color: #8c8c8c;
+            font-weight: normal;
+            font-size: 13px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .menu-table td {
+            color: #595959;
+            font-size: 14px;
+            border-bottom: 1px solid #f9f9f9;
+            vertical-align: middle;
+        }
+
+        /* 🌟 核心高亮：选中行的 AntD 极简风 */
+        .active-row {
+            background-color: #e6f4ff !important;
+            border-left: 3px solid #1677ff !important;
+        }
+
+        .active-row td {
+            color: #1677ff !important;
+            font-weight: 500;
+        }
+
+        /* 幽灵添加按钮 */
+        .btn-add-ghost {
+            border: 1px solid #1677ff;
+            color: #1677ff;
+            background: #fff;
+            transition: all 0.3s;
+        }
+
+        .btn-add-ghost:hover {
+            background: #1677ff;
+            color: #fff;
+        }
+
+        /* 操作图标微交互 */
+        .action-icon {
+            color: #bfbfbf;
+            transition: color 0.3s;
+        }
+
+        .action-edit:hover {
+            color: #1677ff;
+        }
+
+        .action-del:hover {
+            color: #ff4d4f;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <div class="row g-3 mt-2 mx-2" style="height: calc(100vh - 100px);">
+
+        <!-- 用户信息 -->
+        <div class="col-md-3">
+            <div class="card border-0 menu-card h-100">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center px-3">
+                    <h6 class="mb-0 fw-bold" style="color: #262626;">
+                        <i class="fa-solid fa-users me-2" style="color: #8c8c8c;"></i>用户信息
+                    </h6>
+                </div>
+                <div class="card-body p-0 overflow-auto">
+                    <table class="table table-hover menu-table mb-0">
+                        <tbody>
+                        {% for user in all_users %}
+                            <tr class="{% if user.id == user_id %}active-row{% endif %}">
+                                <td class="ps-3">
+                                    <a href="?uid={{ user.id }}" class="text-decoration-none text-inherit d-block">
+                                        {{ user.name }}
+                                    </a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 角色分配 -->
+        <div class="col-md-3">
+            <div class="card border-0 menu-card h-100">
+                <form method="post" action="?uid={{ user_id }}&rid={{ role_id }}">
+                    {% csrf_token %}
+                    <input type="hidden" name="type" value="role">
+                    <div class="card-header py-3 d-flex justify-content-between align-items-center px-3">
+                        <h6 class="mb-0 fw-bold" style="color: #262626;">
+                            <i class="fa-solid fa-user-tie me-2" style="color: #8c8c8c;"></i>角色信息
+                        </h6>
+                        {% if user_id %}
+                            <button type="submit" class="btn btn-sm btn-add-ghost px-3 py-1">
+                                <i class="fa-solid fa-floppy-disk"></i> 保存
+                            </button>
+                        {% endif %}
+                    </div>
+                    <div class="card-body p-0 overflow-auto">
+                        {% if not user_id %}
+                            <div class="p-4 text-center text-muted" style="font-size: 14px;">
+                                <i class="fa-solid fa-circle-info me-1" style="color: #1677ff;"></i>
+                                请先在左侧点击选择一个「用户」
+                            </div>
+                        {% else %}
+                            <table class="table table-hover menu-table mb-0">
+                                <tbody>
+                                {% for role in all_roles %}
+                                    <tr class="{% if role.id == role_id %}active-row{% endif %}">
+                                        <td class="ps-3">
+                                            <input type="checkbox" name="roles" value="{{ role.id }}"
+                                                   class="form-check-input me-2"
+                                                   {% if role.id in user_has_roles_dict %}checked{% endif %}>
+                                            <a href="?uid={{ user_id }}&rid={{ role.id }}"
+                                               class="text-decoration-none text-inherit">
+                                                {{ role.title }}
+                                            </a>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                                </tbody>
+                            </table>
+                        {% endif %}
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- 权限分配 -->
+        <div class="col-md-6">
+            <div class="card border-0 menu-card h-100">
+                <form method="post" action="?uid={{ user_id }}&rid={{ role_id }}">
+                    {% csrf_token %}
+                    <input type="hidden" name="type" value="permission">
+                    <div class="card-header py-3 d-flex justify-content-between align-items-center px-3">
+                        <h6 class="mb-0 fw-bold" style="color: #262626;">
+                            <i class="fa-solid fa-shield-halved me-2" style="color: #8c8c8c;"></i>权限分配
+                        </h6>
+                        {% if role_id %}
+                            <button type="submit" class="btn btn-sm btn-add-ghost px-3 py-1">
+                                <i class="fa-solid fa-floppy-disk"></i> 保存
+                            </button>
+                        {% endif %}
+                    </div>
+
+                    <div class="card-body p-0 overflow-auto" style="background-color: #fafafa;">
+                        {% if not role_id %}
+                            <div class="p-4 text-center text-muted" style="font-size: 14px;">
+                                <i class="fa-solid fa-circle-info me-1" style="color: #1677ff;"></i>
+                                请先在左侧点击选择一个「角色」才能分配权限
+                            </div>
+                        {% else %}
+                            <div class="permission-tree">
+                                {% for menu_id, menu in all_permissions.items %}
+                                    <div class="menu-group border-bottom border-light bg-white mb-2 shadow-sm rounded-1">
+
+                                        <div class="root-menu d-flex justify-content-between align-items-center px-3 py-2 bg-light">
+                                            <div class="fw-bold" style="color: #262626;">
+                                                <i class="fa-solid fa-caret-down me-2 text-muted"></i>{{ menu.title }}
+                                            </div>
+                                            <label class="form-check-label mb-0 fw-normal text-muted"
+                                                   style="font-size: 13px;">
+                                                全选 <input type="checkbox" class="form-check-input ms-1 check-all-btn">
+                                            </label>
+                                        </div>
+
+                                        <div class="second-menu p-3">
+                                            {% for second_menu in menu.children %}
+                                                <div class="second-menu-item mb-3 pb-2 border-bottom border-light">
+
+                                                    <div class="mb-2">
+                                                        <label class="form-check-label fw-medium"
+                                                               style="color: #434343;">
+                                                            <input type="checkbox" class="form-check-input me-2"
+                                                                   name="permissions" value="{{ second_menu.id }}"
+                                                                   {% if second_menu.id in role_has_permissions_dict %}checked{% endif %}>
+                                                            {{ second_menu.title }}
+                                                        </label>
+                                                    </div>
+
+                                                    <div class="third-menu-list d-flex flex-wrap gap-4 ps-4 pt-1">
+                                                        {% for permission in second_menu.children %}
+                                                            <label class="form-check-label text-muted"
+                                                                   style="font-size: 13px;">
+                                                                <input type="checkbox" class="form-check-input me-1"
+                                                                       name="permissions" value="{{ permission.id }}"
+                                                                       {% if permission.id in role_has_permissions_dict %}checked{% endif %}>
+                                                                {{ permission.title }}
+                                                            </label>
+                                                        {% endfor %}
+                                                    </div>
+                                                </div>
+                                            {% endfor %}
+                                        </div>
+
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                </form>
+            </div>
+        </div>
+
+    </div>
+{% endblock %}
+
+{% block js %}
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+
+            // 找到页面上所有的“菜单块”(每一块包含一个全选和若干个子权限)
+            const menuGroups = document.querySelectorAll('.menu-group');
+
+            menuGroups.forEach(group => {
+                // 找到当前块里的“全选按钮”和所有的“普通权限按钮”
+                const checkAllBtn = group.querySelector('.check-all-btn');
+                const permissionCheckboxes = group.querySelectorAll('input[name="permissions"]');
+
+                if (!checkAllBtn || permissionCheckboxes.length === 0) return;
+
+                // 计算当前块里勾选的数量，决定“全选”按钮亮不亮
+                const updateCheckAllState = () => {
+                    const totalCount = permissionCheckboxes.length;
+                    const checkedCount = group.querySelectorAll('input[name="permissions"]:checked').length;
+                    // 只有当总数大于0，且全部勾选时，全选按钮才打钩
+                    checkAllBtn.checked = (totalCount > 0 && totalCount === checkedCount);
+                };
+
+                // 页面刚加载完毕时，先自动检查一遍（为了应对后端数据回显）
+                updateCheckAllState();
+
+                // 用户点击“全选”按钮时 -> 批量控制下面的子项
+                checkAllBtn.addEventListener('change', function () {
+                    const isChecked = this.checked;
+                    permissionCheckboxes.forEach(cb => {
+                        cb.checked = isChecked;
+                    });
+                });
+
+                // 用户点击下面的“子项”时 -> 反向检查是否该亮起“全选”
+                permissionCheckboxes.forEach(cb => {
+                    cb.addEventListener('change', function () {
+                        updateCheckAllState();
+                    });
+                });
+            });
+
+        });
+    </script>
+
+{% endblock %}

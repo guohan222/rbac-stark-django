@@ -13,6 +13,34 @@ from django.http import HttpResponse, JsonResponse
 from django.db.models import ForeignKey, ManyToManyField
 
 
+
+# 封装 model_class, config 与 prefix 的对应关系
+class ModelConfigMapping(object):
+
+    def __init__(self, model_class, config, prefix):
+        self.model_class = model_class
+        self.config = config
+        self.prefix = prefix
+
+
+def get_choice_text(field, head):
+    """
+    对于Stark组件中定义列时，choice如果想要显示中文信息，调用此方法即可
+    :param field: choice字段名
+    :param head: 表头名称
+    :return:
+    """
+
+    def inner(self, obj=None, header=False):
+        if header:
+            return head
+
+        choice_field_text = f'get_{field}_display'
+        return getattr(obj, choice_field_text)()
+
+    return inner
+
+
 class SearchGroupRow(object):
 
     def __init__(self, title, queryset_or_tuple, option, query_dict):
@@ -152,7 +180,7 @@ class ChangeList(object):
         self.add_btn = config.get_add_btn()
         self.action_dict = {item.__name__: item.text for item in config.get_action_list()}
 
-        self.align_right_columns = ['操作']
+        self.align_right_columns = ['操作', '编辑', '删除', ]
         self.list_display = config.get_list_display()
 
 
@@ -170,11 +198,11 @@ class StarkConfig(object):
 
     def display_edit(self, obj=None, header=False):
         if header:
-            return '操作'
+            return '编辑'
 
         edit_icon = f"""
         <div class="text-end pe-4">
-            <a href="{self.reverse_edit_url(obj)}" class="text-decoration-none me-3"
+            <a href="{self.reverse_edit_url(obj)}" class="text-decoration-none"
                style="color: #bfbfbf; transition: 0.3s;" onmouseover="this.style.color='#1677ff'"
                onmouseout="this.style.color='#bfbfbf'">
                 <i class="fa-solid fa-pen-to-square"></i>
@@ -185,7 +213,7 @@ class StarkConfig(object):
 
     def display_del(self, obj=None, header=False):
         if header:
-            return '操作'
+            return '删除'
 
         del_icon = f"""
         <div class="text-end pe-4">
@@ -207,8 +235,8 @@ class StarkConfig(object):
             return '操作'
 
         edit_del_icon = f"""
-        <div class="text-end pe-4">
-            <a href="{self.reverse_edit_url(obj)}" class="text-decoration-none me-3"
+        <div class="text-end ">
+            <a href="{self.reverse_edit_url(obj)}" class="text-decoration-none"
                style="color: #bfbfbf; transition: 0.3s;" onmouseover="this.style.color='#1677ff'"
                onmouseout="this.style.color='#bfbfbf'">
                 <i class="fa-solid fa-pen-to-square"></i>
@@ -227,16 +255,17 @@ class StarkConfig(object):
         """
         return mark_safe(edit_del_icon)
 
-    order_by = []       # 字段排序方式
-    list_display = []   # 显示的列
+    order_by = []  # 字段排序方式
+    list_display = []  # 显示的列
     model_form_class = None
-    action_list = []    # 单选框中的操作
-    search_list = []    # 允许进行关键字搜索的字段
-    search_group = []   # 组合搜索字段实例化的option对象
+    action_list = []  # 单选框中的操作
+    search_list = []  # 允许进行关键字搜索的字段
+    search_group = []  # 组合搜索字段实例化的option对象
 
-    def __init__(self, model_class, site):
+    def __init__(self, model_class, site, prefix):
         self.model_class = model_class
         self.site = site
+        self.prefix = prefix
         self.request = None
 
     def get_order_by(self):
@@ -244,7 +273,11 @@ class StarkConfig(object):
 
     def get_list_display(self):
         """获取要显示的字段（列），预留的自定义扩展，例如：以后根据用户的不同显示不同的列"""
-        return self.list_display
+        value = []
+        value.extend(self.list_display)
+        value.append(StarkConfig.display_edit)
+        value.append(StarkConfig.display_del)
+        return value
 
     def get_add_btn(self):
         add_btn = f"""
@@ -319,6 +352,9 @@ class StarkConfig(object):
     # multi_delete.text = '批量删除'
     # action_list.append(multi_delete)
 
+    def get_queryset(self):
+        return self.model_class.objects
+
     def changelist_view(self, request, *args, **kwargs):
         # 获取关键字搜索条件
         q, search_list, con = self.get_search_condition(request)
@@ -326,7 +362,8 @@ class StarkConfig(object):
         search_group_condition = self.get_search_group_condition(request)
 
         # 表中数据
-        queryset = self.model_class.objects.filter(con).filter(**search_group_condition).order_by(*self.get_order_by())
+        origin_queryset = self.get_queryset()
+        queryset = origin_queryset.filter(con).filter(**search_group_condition).order_by(*self.get_order_by())
 
         # 分页
         page_object = Pagination(
@@ -366,6 +403,10 @@ class StarkConfig(object):
 
         return render(request, 'stark/changelist.html', context)
 
+    def save(self, form, is_modify=True, *args, **kwargs):
+        """在使用ModelForm保存数据之前预留的钩子方法"""
+        form.save()
+
     def add_view(self, request):
         ModelFormClass = self.get_model_form_class()
         change_list_url = self.reverse_list_url()
@@ -375,7 +416,8 @@ class StarkConfig(object):
             return render(request, 'stark/change.html', {'form': form, 'change_list_url': change_list_url})
         form = ModelFormClass(data=request.POST)
         if form.is_valid():
-            form.save()
+            self.save(form, False, )
+            # form.save()
             return redirect(change_list_url)
         return render(request, 'stark/change.html', {'form': form, 'change_list_url': change_list_url})
 
@@ -392,7 +434,7 @@ class StarkConfig(object):
             return render(request, 'stark/change.html', {'form': form, 'change_list_url': change_list_url})
         form = ModelFormClass(data=request.POST, instance=obj)
         if form.is_valid():
-            form.save()
+            self.save(form,)
             return redirect(change_list_url)
         return render(request, 'stark/change.html', {'form': form, 'change_list_url': change_list_url})
 
@@ -410,14 +452,12 @@ class StarkConfig(object):
 
     # 为每张表生成crud路由
     def get_urls(self):
-        # noinspection PyProtectedMember
-        prefix = f'{self.model_class._meta.app_label}_{self.model_class._meta.model_name}'
 
         urlpatterns = [
-            path('list/', self.wrapper(self.changelist_view), name=f'{prefix}_changelist'),
-            path('add/', self.wrapper(self.add_view), name=f'{prefix}_add'),
-            path('edit/<int:pk>/', self.wrapper(self.change_view), name=f'{prefix}_change'),
-            path('del/<int:pk>/', self.wrapper(self.delete_view), name=f'{prefix}_del'),
+            path('list/', self.wrapper(self.changelist_view), name=self.get_list_url_name),
+            path('add/', self.wrapper(self.add_view), name=self.get_add_url_name),
+            path('change/<int:pk>/', self.wrapper(self.change_view), name=self.get_change_url_name),
+            path('del/<int:pk>/', self.wrapper(self.delete_view), name=self.get_del_url_name),
         ]
 
         # 检测‘自己(self)’的crud类，有没有在extra_url函数中自定义其他功能的url
@@ -434,11 +474,45 @@ class StarkConfig(object):
     def urls(self):
         return self.get_urls()
 
+    @property
+    def get_list_url_name(self):
+        if self.prefix:
+            info = f'{self.model_class._meta.app_label}_{self.model_class._meta.model_name}_{self.prefix}'
+        else:
+            info = f'{self.model_class._meta.app_label}_{self.model_class._meta.model_name}'
+        name = f'{info}_changelist'
+        return name
+
+    @property
+    def get_add_url_name(self):
+        if self.prefix:
+            info = f'{self.model_class._meta.app_label}_{self.model_class._meta.model_name}_{self.prefix}'
+        else:
+            info = f'{self.model_class._meta.app_label}_{self.model_class._meta.model_name}'
+        name = f'{info}_add'
+        return name
+
+    @property
+    def get_change_url_name(self):
+        if self.prefix:
+            info = f'{self.model_class._meta.app_label}_{self.model_class._meta.model_name}_{self.prefix}'
+        else:
+            info = f'{self.model_class._meta.app_label}_{self.model_class._meta.model_name}'
+        name = f'{info}_change'
+        return name
+
+    @property
+    def get_del_url_name(self):
+        if self.prefix:
+            info = f'{self.model_class._meta.app_label}_{self.model_class._meta.model_name}_{self.prefix}'
+        else:
+            info = f'{self.model_class._meta.app_label}_{self.model_class._meta.model_name}'
+        name = f'{info}_del'
+        return name
+
     def reverse_list_url(self, ):
-        app_label = self.model_class._meta.app_label
-        model_name = self.model_class._meta.model_name
         namespace = self.site.namespace
-        name = f'{namespace}:{app_label}_{model_name}_changelist'
+        name = f'{namespace}:{self.get_list_url_name}'
         list_url = reverse(name)
 
         params_str = self.request.GET.get('_filter')
@@ -447,10 +521,8 @@ class StarkConfig(object):
         return list_url
 
     def reverse_add_url(self):
-        app_label = self.model_class._meta.app_label
-        model_name = self.model_class._meta.model_name
         namespace = self.site.namespace
-        name = f'{namespace}:{app_label}_{model_name}_add'
+        name = f'{namespace}:{self.get_add_url_name}'
         add_url = reverse(name)
 
         # 如果有 GET 参数，打包成 _filter，urlencode读取所以，request.GET没有发生改变
@@ -463,10 +535,8 @@ class StarkConfig(object):
         return add_url
 
     def reverse_edit_url(self, obj):
-        app_label = self.model_class._meta.app_label
-        model_name = self.model_class._meta.model_name
         namespace = self.site.namespace
-        name = f'{namespace}:{app_label}_{model_name}_change'
+        name = f'{namespace}:{self.get_change_url_name}'
         edit_url = reverse(name, kwargs={'pk': obj.pk})
 
         params_str = self.request.GET.urlencode()
@@ -478,10 +548,8 @@ class StarkConfig(object):
         return edit_url
 
     def reverse_del_url(self, obj):
-        app_label = self.model_class._meta.app_label
-        model_name = self.model_class._meta.model_name
         namespace = self.site.namespace
-        name = f'{namespace}:{app_label}_{model_name}_del'
+        name = f'{namespace}:{self.get_del_url_name}'
         del_url = reverse(name, kwargs={'pk': obj.pk})
         return del_url
 
@@ -495,10 +563,10 @@ class StarkSite(object):
         """
         self.app_name = 'stark'
         self.namespace = 'stark'
-        self._registry = {}
+        self._registry = []
 
     # 收集所有表对应的model，以及每张表的crud类
-    def register(self, model_class, stark_config=None):
+    def register(self, model_class, stark_config=None, prefix=None):
         """
         判断表注册时是否有待带自己的crud类，
         没有则用通用的StarkConfig，
@@ -512,7 +580,8 @@ class StarkSite(object):
             stark_config = StarkConfig
 
         # ！！！进行实例化
-        self._registry[model_class] = stark_config(model_class, self)
+        # self._registry[model_class] = stark_config(model_class, self)
+        self._registry.append(ModelConfigMapping(model_class, stark_config(model_class, self, prefix), prefix))
         print(self._registry)
 
     # 给每张表造crud路由
@@ -533,13 +602,18 @@ class StarkSite(object):
         """
 
         urlpatterns = []
-        for model_class, stark_config in self._registry.items():
+        for item in self._registry:
             # 获取表所在的app名和表对应的类名（小写）
-            app_label = model_class._meta.app_label
-            model_name = model_class._meta.model_name
+            app_label = item.model_class._meta.app_label
+            model_name = item.model_class._meta.model_name
+
+            if item.prefix:
+                temp = path(f'{app_label}/{model_name}/{item.prefix}/', (item.config.urls, None, None))
+            else:
+                temp = path(f'{app_label}/{model_name}/', (item.config.urls, None, None))
 
             # 示例中第二层
-            urlpatterns.append(path(f'{app_label}/{model_name}/', (stark_config.urls, None, None)))
+            urlpatterns.append(temp)
 
         return urlpatterns
 

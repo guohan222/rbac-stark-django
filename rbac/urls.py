@@ -30,4 +30,6 @@ urlpatterns = [
     path('multi/permissions/', menu.multi_permissions, name='multi_permissions'),
     path('multi/permissions/del/<int:pk>/', menu.multi_permissions_del, name='multi_permissions_del'),
 
+    # 用户-角色-权限分配
+    path('distribute/permissions/',menu.distribute_permissions,name='distribute_permissions')
 ]

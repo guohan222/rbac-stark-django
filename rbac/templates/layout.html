@@ -5,13 +5,13 @@
 <head>
     <meta charset="UTF-8">
     <title>CRM</title>
-    <link rel="stylesheet" href="{% static 'stark/plugin/bootstrap-5.3.0-alpha2-dist/css/bootstrap.min.css' %}"/>
-    <link rel="stylesheet" href="{% static 'stark/plugin/fontawesome-free-7.2.0-web/css/all.min.css' %}"/>
-    <link rel="stylesheet" href="{% static 'stark/plugin/tom-select/css/tom-select.bootstrap5.min.css' %}">
+{#    <link rel="stylesheet" href="{% static 'stark/plugin/bootstrap-5.3.0-alpha2-dist/css/bootstrap.min.css' %}"/>#}
+{#    <link rel="stylesheet" href="{% static 'stark/plugin/fontawesome-free-7.2.0-web/css/all.min.css' %}"/>#}
+{#    <link rel="stylesheet" href="{% static 'stark/plugin/tom-select/css/tom-select.bootstrap5.min.css' %}">#}
 
     <link rel="stylesheet" href="{% static 'rbac/css/rbac.css' %}"/>
-    <link rel="stylesheet" href="{% static 'stark/css/commons.css' %}"/>
-    <link rel="stylesheet" href="{% static 'stark/css/nav.css' %}"/>
+{#    <link rel="stylesheet" href="{% static 'stark/css/commons.css' %}"/>#}
+{#    <link rel="stylesheet" href="{% static 'stark/css/nav.css' %}"/>#}
 
 
     <style>
@@ -162,10 +162,16 @@
 <div class="pg-body">
     <aside class="left-menu">
 
+        <!-- 此处放置inclusion_tag生成的html片段：菜单的展示 -->
+        {#         {% menu request %} #}
 
     </aside>
     <main class="right-body">
         <nav aria-label="breadcrumb" class="mb-3 bg-white p-3 rounded shadow-sm border-0">
+
+            <!-- 此处放置inclusion_tag生成的html片段：导航条的展示 -->
+            {#            {% breadcrumb request %}#}
+
         </nav>
 
         {% block content %}{% endblock %}
@@ -175,8 +181,8 @@
 
 
 <script src="{% static 'rbac/js/rbac.js' %}"></script>
-<script src="{% static 'stark/plugin/bootstrap-5.3.0-alpha2-dist/js/bootstrap.bundle.min.js' %}"></script>
-<script src="{% static 'stark/plugin/tom-select/js/tom-select.complete.min.js' %}"></script>
+{#<script src="{% static 'stark/plugin/bootstrap-5.3.0-alpha2-dist/js/bootstrap.bundle.min.js' %}"></script>#}
+{#<script src="{% static 'stark/plugin/tom-select/js/tom-select.complete.min.js' %}"></script>#}
 
 {% block js %}{% endblock %}
 

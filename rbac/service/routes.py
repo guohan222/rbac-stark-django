@@ -49,7 +49,7 @@ def recursion_urls(pre_namespace, pre_url, urlpatterns, url_ordered_dict):
                 if item.namespace:
                     namespace = "%s:%s" % (pre_namespace, item.namespace,)
                 else:
-                    namespace = item.namespace
+                    namespace = pre_namespace
             else:
                 if item.namespace:
                     namespace = item.namespace
