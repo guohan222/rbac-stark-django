@@ -1,12 +1,39 @@
+<font color='red'>若想将STARK组件与RBAC组件配合使用务必先跑通STARK组件</font>
+
 # 一、 配置教程
+
+```html
+<!-- 如果想配置该组件务必务必 看以下条件: -->
+
+	1. 务必，先将layout.html母版里面的相关信息先注释掉再进行RBAC组件的配置
+	
+	2. 待权限录入与分配成功后再将注释取消
+	
+	
+	
+1. {% load rbac %}
+
+2. <link rel="stylesheet" href="{% static 'rbac/css/rbac.css' %}"/>
+ 
+3.  <aside class="left-menu">
+         {% menu request %}
+     </aside>
+ 
+
+4. <nav aria-label="breadcrumb" class="mb-3 bg-white p-3 rounded shadow-sm border-0">
+        {% breadcrumb request %}
+    </nav>
+
+5. <script src="{% static 'rbac/js/rbac.js' %}"></script>
+```
+
+
 
 **前戏（配置教程）：**
 
-1. 清除rbac/migrations目录下所有的迁移记录，保留`__init__.py`
+1. 注册rbac-app
 
-2. 注册rbac-app
-
-3. 在项目路由系统中注册rbac相关路由
+2. 在项目路由系统中注册rbac相关路由
 
    ```python
    urlpatterns = [
@@ -15,7 +42,7 @@
    ]
    ```
 
-4. 项目settings中配置相关信息:
+3. 项目settings中配置相关信息:
 
    ```python
    # 权限和菜单存放在session中的键
@@ -46,7 +73,7 @@
    ]
    ```
 
-5. 让业务用户表继承权限的UserInfo类
+4. 让业务用户表继承权限的UserInfo类
 
    ```python
    # rbac:
@@ -67,7 +94,7 @@
    ```
 
    ```python
-   # web
+   # web:
    
    from rbac.models import UserInfo as RbacUserInfo
    
@@ -91,23 +118,25 @@
            return self.nickname
    ```
 
-6. 执行数据库迁移
+5. 执行数据库迁移
 
    ```
    如果，对原有项目使用rbac组件，则需要将rbac里面的字段允许为空后在执行迁移，迁移成功后再进行数据手搓
    ```
 
-7. 配置中间件
+6. 配置中间件
 
    ```
    建议在 正轨步骤进行完成后 进行配置
    ```
 
-   
-
 
 
 # 二、使用教程
+
+```
+强烈建议，提前准备好login.html 与 测试用户信息（用于登录，看最终效果 与 权限分配测试）
+```
 
 **正轨（使用教程）：**
 
@@ -123,13 +152,30 @@
    http://127.0.0.1:8000/rbac/multi/permissions/
    ```
 
-3. 权限分配：
+3. 创建角色：
+
+   ```
+   http://127.0.0.1:8000/rbac/role/list/
+   ```
+
+4. 权限分配（使用提前在数据库中准备好的用户）：
 
    ```
    http://127.0.0.1:8000/rbac/distribute/permissions/
    ```
 
-4. 登录进行权限初始化
+5. 登录进行权限初始化
+
+   ```python
+   from web import views
+   
+   urlpatterns = [
+       path('admin/', admin.site.urls),
+       path('rbac/', include('rbac.urls', namespace='rbac')),
+       path('stark/', site.urls),
+       path('login/', views.login),
+   ]
+   ```
 
    ```python
    from rbac.service.init_permission import init_permission
@@ -151,19 +197,39 @@
        # 用户权限信息的初始化
        init_permission(request,user)
    
-       return redirect('stark:web_customer_pub_changelist')
+       return redirect('rbac:menu_list')
    ```
 
-5. 前端母版的配置
+6. 注册中间件
+
+   ```
+   MIDDLEWARE = [
+       'django.middleware.security.SecurityMiddleware',
+       ...
+       
+       'rbac.middleware.rbac.RbacMiddleware'
+   ]
+   ```
+
+7. 前端母版的配置，取消最开始的注释
 
    ```html
    {% load static %}
-   {% load rbac %}
    
+   1. {% load rbac %}
    
-   <link rel="stylesheet" href="{% static 'rbac/css/rbac.css' %}"/>
+   2. <link rel="stylesheet" href="{% static 'rbac/css/rbac.css' %}"/>
+    
+   3.  <aside class="left-menu">
+            {% menu request %}
+        </aside>
    
-   <script src="{% static 'rbac/js/rbac.js' %}"></script>
+   4. <nav aria-label="breadcrumb" class="mb-3 bg-white p-3 rounded shadow-sm border-0">
+           {% breadcrumb request %}
+       </nav>
+   
+   5. <script src="{% static 'rbac/js/rbac.js' %}"></script>
+   
    
    
    # 若单独使用该RBAC组件，需要您引入其他的相关配置
@@ -181,7 +247,7 @@
    
    ```
 
-6. 菜单的展示
+8. 菜单的展示
 
    ```html
    
@@ -193,7 +259,7 @@
    
    ```
 
-7. 导航条的展示
+9. 导航条的展示
 
    ```html
    <nav aria-label="breadcrumb" class="mb-3 bg-white p-3 rounded shadow-sm border-0">
@@ -201,7 +267,7 @@
    </nav>
    ```
 
-8. 权限控制到按钮（推荐方式二）
+10. 权限控制到按钮（推荐方式二）
 
    ```python
    方式一：	前端利用filter根据别名进行判断是否有这个权限，决定这个按钮是否进行展示
@@ -257,9 +323,9 @@
        return val	
    
    ```
-   
+
    **放置：web/utils/mixins.py，源码如下（核心胶水层）：**
-   
+
    ```python
    from django.conf import settings
    
@@ -310,7 +376,7 @@
    
            return result
    ```
-   
+
    
 
 

@@ -1,8 +1,14 @@
+<font color='red'>若想将STARK组件与RBAC组件配合使用务必先跑通STARK组件</font>
+
 # 一、配置教程
 
 **前戏（配置教程）：**
 
 1. 拷贝组件，进行app注册（建议先进行STARK组件的套用再进行RBAC组件的套用）
+
+   - 注册STARK组件app
+
+   - 注册业务web的app
 
 2. 在其他业务app下创建`stark.py`文件，用于对业务表使用通用`CRUD功能与相关路由生成`
 
@@ -18,9 +24,43 @@
    
    urlpatterns = [
        path('admin/', admin.site.urls),
-       path('rbac/', include('rbac.urls',namespace='rbac')),
        path('stark/', site.urls),
+       # STARK组件跑通后在进行rbac的配置
    ]
+   ```
+
+4. 写好models，执行迁移文件
+
+   ```python
+   class Book(models.Model):
+       title = models.CharField(verbose_name='书名', max_length=32)
+       price = models.DecimalField(verbose_name='价格', max_digits=8, decimal_places=2)
+   ```
+
+   ```python
+   python manage.py makemigrations
+   python manage.py migrate
+   ```
+
+5. 将提供`layout.html`母版放置于`tempaltes`目录下（两个组件中均有提供）
+
+   - 如果，不想应用RBAC组件，则需要将该母版中以下内容注释 / 删除
+
+   ```html
+   1. {% load rbac %}
+   
+   2. <link rel="stylesheet" href="{% static 'rbac/css/rbac.css' %}"/>
+    
+   3.  <aside class="left-menu">
+            {% menu request %}
+        </aside>
+    
+   
+   4. <nav aria-label="breadcrumb" class="mb-3 bg-white p-3 rounded shadow-sm border-0">
+           {% breadcrumb request %}
+       </nav>
+   
+   5. <script src="{% static 'rbac/js/rbac.js' %}"></script>
    ```
 
    
